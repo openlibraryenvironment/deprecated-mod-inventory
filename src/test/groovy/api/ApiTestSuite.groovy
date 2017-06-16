@@ -4,6 +4,7 @@ import api.support.ControlledVocabularyPreparation
 import org.folio.inventory.InventoryVerticle
 import org.folio.inventory.common.VertxAssistant
 import org.folio.inventory.support.http.client.OkapiHttpClient
+import org.folio.rest.RestVerticle
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.runner.RunWith
@@ -42,6 +43,9 @@ class ApiTestSuite {
   private static Boolean useOkapiForStorageRequests =
     (System.getProperty("use.okapi.storage.requests") ?: "").toBoolean()
   private static String okapiAddress = System.getProperty("okapi.address", "")
+
+  private static Boolean useRamlModuleBuilder =
+    (System.getProperty("use.raml.module.builder") ?: "").toBoolean()
 
   @BeforeClass
   static void before() {
@@ -114,20 +118,34 @@ class ApiTestSuite {
   private static startInventoryVerticle() {
     def deployed = new CompletableFuture()
 
+    if(useRamlModuleBuilder) {
+      startRamlModuleBuilderVerticle(deployed)
+    }
+    else {
+      startGroovyInventoryVerticle(deployed)
+    }
+
+    inventoryModuleDeploymentId = deployed.get(20000, TimeUnit.MILLISECONDS)
+  }
+
+  static def startRamlModuleBuilderVerticle(CompletableFuture deployed) {
+    vertxAssistant.deployVerticle(
+      RestVerticle.class.name, ["http.port": INVENTORY_VERTICLE_TEST_PORT], deployed)
+  }
+
+  private static void startGroovyInventoryVerticle(CompletableFuture deployed) {
     def storageType = "okapi"
     def storageLocation = ""
 
     println("Storage Type: ${storageType}")
     println("Storage Location: ${storageLocation}")
 
-    def config = ["port": INVENTORY_VERTICLE_TEST_PORT,
-                  "storage.type" : storageType,
-                  "storage.location" : storageLocation]
+    def config = ["port"            : INVENTORY_VERTICLE_TEST_PORT,
+                  "storage.type"    : storageType,
+                  "storage.location": storageLocation]
 
     vertxAssistant.deployGroovyVerticle(
-      InventoryVerticle.class.name, config,  deployed)
-
-    inventoryModuleDeploymentId = deployed.get(20000, TimeUnit.MILLISECONDS)
+      InventoryVerticle.class.name, config, deployed)
   }
 
   private static stopInventoryVerticle() {

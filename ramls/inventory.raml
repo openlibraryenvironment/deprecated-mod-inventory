@@ -39,17 +39,36 @@ resourceTypes:
       is: [pageable,
           searchable: {description: "by title (using CQL)",
                        example: "title=\"*uproot*\""}]
+      responses:
+        501:
+          description: "Not implemented yet"
     post:
+      responses:
+        501:
+          description: "Not implemented yet"
     delete:
       responses:
         204:
           description: "All items deleted"
+        501:
+          description: "Not implemented yet"
     /{itemId}:
       type:
         collection-item:
           exampleItem: !include examples/item_get.json
           schema: item.json
       get:
+        responses:
+          501:
+            description: "Not implemented yet"
+      put:
+        responses:
+          501:
+            description: "Not implemented yet"
+      delete:
+        responses:
+          501:
+            description: "Not implemented yet"
   /instances:
     displayName: Instances
     type:
@@ -60,17 +79,36 @@ resourceTypes:
         exampleItem: !include examples/instance_get.json
     get:
       is: [pageable]
+      responses:
+        501:
+          description: "Not implemented yet"
     post:
+      responses:
+        501:
+          description: "Not implemented yet"
     delete:
       responses:
         204:
           description: "All instances deleted"
+        501:
+          description: "Not implemented yet"
     /{instanceId}:
       type:
         collection-item:
           exampleItem: !include examples/instance_get.json
           schema: instance.json
       get:
+        responses:
+          501:
+            description: "Not implemented yet"
+      put:
+        responses:
+          501:
+            description: "Not implemented yet"
+      delete:
+        responses:
+          501:
+            description: "Not implemented yet"
     /context:
       get:
         description: "Provides Dublin Core context for instances"
@@ -81,6 +119,8 @@ resourceTypes:
               application/json:
                 example: !include examples/instance_context_get.json
                 schema: context
+          501:
+            description: "Not implemented yet"
   /ingest:
     /mods:
       post:
@@ -103,6 +143,8 @@ resourceTypes:
           500:
             body:
               text/plain:
+          501:
+            description: "Not implemented yet"
       /status:
         /{id}:
           get:
@@ -116,3 +158,5 @@ resourceTypes:
               500:
                 body:
                   text/plain:
+              501:
+                description: "Not implemented yet"
