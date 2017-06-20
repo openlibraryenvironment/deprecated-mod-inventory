@@ -3,92 +3,11 @@
   "type": "object",
   "properties": {
     "items": {
+      "id": "items",
       "type": "array",
       "items": {
         "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "instanceId": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "barcode": {
-            "type": "string"
-          },
-          "status": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "name"
-            ]
-          },
-          "materialType": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ]
-          },
-          "permanentLoanType": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ]
-          },
-          "temporaryLoanType": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ]
-          },
-          "location": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "name"
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "instanceId"
-        ]
+        "$ref": "item.json"
       }
     },
     "totalRecords": {
