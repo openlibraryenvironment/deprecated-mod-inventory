@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <artifactId>inventory</artifactId>
   <groupId>org.folio</groupId>
-  <version>5.0.1-SNAPSHOT</version>
+  <version>6.0.0-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -21,6 +21,11 @@
   </repositories>
 
   <dependencies>
+    <dependency>
+       <groupId>org.folio</groupId>
+       <artifactId>domain-models-runtime</artifactId>
+       <version>12.1.2</version>
+     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-core</artifactId>
@@ -60,11 +65,6 @@
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient-cache</artifactId>
       <version>4.5.2</version>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.groovy.modules.http-builder</groupId>
-      <artifactId>http-builder</artifactId>
-      <version>0.7.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -147,7 +147,6 @@
           <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
-      <!--
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
@@ -176,8 +175,6 @@
           </execution>
         </executions>
       </plugin>
--->
-<!--
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>aspectj-maven-plugin</artifactId>
@@ -219,9 +216,8 @@
             <version>1.8.9</version>
           </dependency>
         </dependencies>
-      </plugin> -->
-
-      <!-- <plugin>
+      </plugin>
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>properties-maven-plugin</artifactId>
         <version>1.0.0</version>
@@ -240,9 +236,8 @@
             </property>
           </properties>
         </configuration>
-      </plugin> -->
-
-      <!-- <plugin>
+      </plugin>
+      <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <version>3.0.1</version>
         <executions>
@@ -279,8 +274,7 @@
             </configuration>
           </execution>
         </executions>
-      </plugin> -->
-
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
