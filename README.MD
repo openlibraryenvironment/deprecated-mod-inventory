@@ -19,7 +19,8 @@ This readme is intended to get these modules up and running. For further informa
 # Prerequisites
 
 - Java 8 JDK
-- Apache Groovy 2.4.8
+- Apache Groovy 2.4.11
+- Maven 3.3.9
 - Gradle 3.3
 - Node 6.4.0 (for API linting and documentation generation)
 - NPM 3.10.3 (for API linting and documentation generation)
