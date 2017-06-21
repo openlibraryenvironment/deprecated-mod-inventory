@@ -28,7 +28,7 @@ dependencies {
   compile 'org.folio:domain-models-runtime:12.1.2'
   compile 'io.vertx:vertx-core:3.3.2'
   compile "io.vertx:vertx-lang-groovy:3.3.2"
-  compile 'org.codehaus.groovy:groovy-all:2.4.8'
+  compile 'org.codehaus.groovy:groovy-all:2.4.11'
   compile 'io.vertx:vertx-web:3.3.2'
   compile 'com.google.guava:guava:19.0'
   compile 'org.apache.commons:commons-lang3:3.5'
