@@ -4,15 +4,22 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import org.folio.inventory.support.CollectionResourceClient;
+import org.folio.inventory.support.http.client.OkapiHttpClient;
 import org.folio.rest.jaxrs.model.Instance;
 import org.folio.rest.jaxrs.model.Item;
 import org.folio.rest.jaxrs.resource.InventoryResource;
 
 import javax.mail.internet.MimeMultipart;
 import javax.ws.rs.core.Response;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Map;
 
 public class InventoryAPI implements InventoryResource {
+
+  private final String OKAPI_URL = "X-Okapi-Url";
+
   @Override
   public void deleteInventoryItems(
     String lang,
@@ -20,7 +27,16 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    CollectionResourceClient itemsClient;
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    itemsClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), "/item-storage/items"));
+
+    itemsClient.delete(response ->{
+      asyncResultHandler.handle(Future.succeededFuture(
+        DeleteInventoryItemsResponse.withNoContent()));
+    });
   }
 
   @Override
@@ -87,7 +103,16 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    CollectionResourceClient instancesStorageClient;
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    instancesStorageClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), "/instance-storage/instances"));
+
+    instancesStorageClient.delete(response ->{
+      asyncResultHandler.handle(Future.succeededFuture(
+        DeleteInventoryInstancesResponse.withNoContent()));
+    });
   }
 
   @Override
@@ -171,5 +196,25 @@ public class InventoryAPI implements InventoryResource {
     Context vertxContext) throws Exception {
 
     asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+  }
+
+  private OkapiHttpClient createHttpClient(Context context,
+                                           Map<String, String> okapiHeaders)
+    throws MalformedURLException {
+
+    //TODO: Need to reinstate handling exceptions
+    return new OkapiHttpClient(context.owner().createHttpClient(),
+      new URL(okapiHeaders.get(OKAPI_URL)), okapiHeaders.get("X-Okapi-Tenant"),
+      okapiHeaders.get("X-Okapi-Token"),
+      exception -> {  });
+  }
+
+  private URL okapiBasedUrl(String okapiUrl, String path)
+    throws MalformedURLException {
+
+    URL currentRequestUrl = new URL(okapiUrl);
+
+    return new URL(currentRequestUrl.getProtocol(), currentRequestUrl.getHost(),
+      currentRequestUrl.getPort(), path);
   }
 }

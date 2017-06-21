@@ -1,4 +1,4 @@
-package org.folio.inventory;
+package org.folio.inventory.support;
 
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpClientResponse;
@@ -29,7 +29,7 @@ public class CollectionResourceClient {
   }
 
   public void put(String id, Object resourceRepresentation,
-                  Consumer<Response> responseHandler) {
+                     Consumer<Response> responseHandler) {
 
     client.put(String.format(collectionRoot + "/%s", id),
       resourceRepresentation,
