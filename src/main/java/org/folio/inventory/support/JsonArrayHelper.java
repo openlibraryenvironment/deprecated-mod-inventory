@@ -23,7 +23,7 @@ public class JsonArrayHelper {
       .collect(Collectors.toList());
   }
 
-  public static List<Map> toListOfMaps(JsonArray array) {
+  public static List<Map<String, Object>> toListOfMaps(JsonArray array) {
     return JsonArrayHelper.toList(array).stream()
       .map(it -> it.getMap())
       .collect(Collectors.toList());
