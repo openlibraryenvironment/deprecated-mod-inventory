@@ -27,6 +27,6 @@ class ItemApiClient {
 
     assert getResponse.statusCode == 200
 
-    getResponse.json
+    getResponse.json.getJsonObject("item")
   }
 }

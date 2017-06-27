@@ -95,48 +95,54 @@ class ModsIngestExamples extends Specification {
     def items = JsonArrayHelper.toList(getAllResponse.json.getJsonArray("items"))
 
     assert items.size() == 8
-    assert items.every({ it.containsKey("id") })
-    assert items.every({ it.containsKey("title") })
-    assert items.every({ it.containsKey("barcode") })
-    assert items.every({ it.containsKey("instanceId") })
-    assert items.every({ it.getJsonObject("status").getString("name") == "Available" })
-    assert items.every({ it.getJsonObject("materialType").getString("id") == ApiTestSuite.bookMaterialType })
-    assert items.every({ it.getJsonObject("materialType").getString("name") == "Book" })
-    assert items.every({ it.getJsonObject("location").getString("name") == "Main Library" })
+    assert items.every({ it.getJsonObject("item").containsKey("id") })
+    assert items.every({ it.getJsonObject("item").containsKey("title") })
+    assert items.every({ it.getJsonObject("item").containsKey("barcode") })
+    assert items.every({ it.getJsonObject("item").containsKey("instanceId") })
+    assert items.every({ it.getJsonObject("item").getJsonObject("status").getString("name") == "Available" })
+    assert items.every({ it.getJsonObject("item").getJsonObject("materialType").getString("id") == ApiTestSuite.bookMaterialType })
+    assert items.every({ it.getJsonObject("item").getJsonObject("materialType").getString("name") == "Book" })
+    assert items.every({ it.getJsonObject("item").getJsonObject("location").getString("name") == "Main Library" })
 
     assert items.any({
-      itemSimilarTo(it, "California: its gold and its inhabitants", "69228882")
+      itemSimilarTo(it.getJsonObject("item"),
+        "California: its gold and its inhabitants", "69228882")
     })
 
     assert items.any({
-      itemSimilarTo(it, "Studien zur Geschichte der Notenschrift.", "69247446")
+      itemSimilarTo(it.getJsonObject("item"),
+        "Studien zur Geschichte der Notenschrift.", "69247446")
     })
 
     assert items.any({
-      itemSimilarTo(it, "Essays on C.S. Lewis and George MacDonald", "53556908")
+      itemSimilarTo(it.getJsonObject("item"),
+        "Essays on C.S. Lewis and George MacDonald", "53556908")
     })
 
     assert items.any({
-      itemSimilarTo(it, "Statistical sketches of Upper Canada", "69077747")
+      itemSimilarTo(it.getJsonObject("item"),
+        "Statistical sketches of Upper Canada", "69077747")
     })
 
     assert items.any({
-      itemSimilarTo(it, "Edward McGuire, RHA", "22169083")
+      itemSimilarTo(it.getJsonObject("item"),
+        "Edward McGuire, RHA", "22169083")
     })
 
     assert items.any({
-      itemSimilarTo(it, "Influenza della Poesia sui Costumi", "43620390")
+      itemSimilarTo(it.getJsonObject("item"),
+        "Influenza della Poesia sui Costumi", "43620390")
     })
 
     assert items.any({
-      itemSimilarTo(it, "Pavle Nik", "37696876")
+      itemSimilarTo(it.getJsonObject("item"), "Pavle Nik", "37696876")
     })
 
     assert items.any({
-      itemSimilarTo(it, "Grammaire", "69250051")
+      itemSimilarTo(it.getJsonObject("item"), "Grammaire", "69250051")
     })
 
-    items.every({ hasCorrectInstanceRelationship(it) })
+    items.every({ hasCorrectInstanceRelationship(it.getJsonObject("item")) })
   }
 
   private hasCorrectInstanceRelationship(JsonObject item) {

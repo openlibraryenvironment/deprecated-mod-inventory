@@ -19,28 +19,33 @@ class ItemRepresentation {
     JsonObject temporaryLoanType,
     WebContext context) {
 
-    def representation = toJson(item, context)
+    def representation = new JsonObject()
+
+    def itemRepresentation = toJson(item, context)
 
     if(materialType != null) {
-      representation.getJsonObject("materialType")
+      itemRepresentation.getJsonObject("materialType")
         .put("name", materialType.getString("name"))
     }
 
     if(permanentLoanType != null) {
-      representation.getJsonObject("permanentLoanType")
+      itemRepresentation.getJsonObject("permanentLoanType")
         .put("name", permanentLoanType.getString("name"))
     }
 
     if(temporaryLoanType != null) {
-      representation.getJsonObject("temporaryLoanType")
+      itemRepresentation.getJsonObject("temporaryLoanType")
         .put("name", temporaryLoanType.getString("name"))
     }
+
+    representation.put("item", itemRepresentation)
 
     representation
   }
 
   JsonObject toJson(Item item, WebContext context) {
     def representation = new JsonObject()
+
     representation.put("id", item.id)
     representation.put("title", item.title)
 

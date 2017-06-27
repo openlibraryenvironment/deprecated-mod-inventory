@@ -61,7 +61,7 @@ class ItemApiExamples extends Specification {
 
       assert getResponse.statusCode == 200
 
-      def createdItem = getResponse.json
+      def createdItem = getResponse.json.getJsonObject("item")
 
       assert createdItem.containsKey("id")
       assert createdItem.getString("title") == "Long Way to a Small Angry Planet"
@@ -114,7 +114,7 @@ class ItemApiExamples extends Specification {
 
       assert getResponse.statusCode == 200
 
-      def createdItem = getResponse.json
+      def createdItem = getResponse.json.getJsonObject("item")
 
       assert createdItem.getString("id") == itemId
 
@@ -156,7 +156,7 @@ class ItemApiExamples extends Specification {
 
       assert getResponse.statusCode == 200
 
-      def createdItem = getResponse.json
+      def createdItem = getResponse.json.getJsonObject("item")
 
       assert createdItem.containsKey("id")
       assert createdItem.getString("title") == "Long Way to a Small Angry Planet"
@@ -334,7 +334,7 @@ class ItemApiExamples extends Specification {
 
       assert getResponse.statusCode == 200
 
-      def createdItem = getResponse.json
+      def createdItem = getResponse.json.getJsonObject("item")
 
       assert createdItem.containsKey("id")
       assert createdItem.getString("title") == "Long Way to a Small Angry Planet"
@@ -414,7 +414,7 @@ class ItemApiExamples extends Specification {
 
       assert getResponse.statusCode == 200
 
-      def updatedItem = getResponse.json
+      def updatedItem = getResponse.json.getJsonObject("item")
 
       assert updatedItem.containsKey("id")
       assert updatedItem.getString("title") == "Long Way to a Small Angry Planet"
@@ -617,59 +617,59 @@ class ItemApiExamples extends Specification {
       assert secondPageResponse.json.getInteger("totalRecords") == 5
 
       firstPageItems.each {
-        selfLinkRespectsWayResourceWasReached(it)
+        selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
       }
 
       firstPageItems.each {
-        selfLinkShouldBeReachable(it)
+        selfLinkShouldBeReachable(it.getJsonObject("item"))
       }
 
       firstPageItems.each {
-        hasConsistentMaterialType(it)
+        hasConsistentMaterialType(it.getJsonObject("item"))
       }
 
       firstPageItems.each {
-        hasConsistentPermanentLoanType(it)
+        hasConsistentPermanentLoanType(it.getJsonObject("item"))
       }
 
       firstPageItems.each {
-        hasConsistentTemporaryLoanType(it)
+        hasConsistentTemporaryLoanType(it.getJsonObject("item"))
       }
 
       firstPageItems.each {
-        hasStatus(it)
+        hasStatus(it.getJsonObject("item"))
       }
 
       firstPageItems.each {
-        hasLocation(it)
+        hasLocation(it.getJsonObject("item"))
       }
 
       secondPageItems.each {
-        selfLinkRespectsWayResourceWasReached(it)
+        selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
       }
 
       secondPageItems.each {
-        selfLinkShouldBeReachable(it)
+        selfLinkShouldBeReachable(it.getJsonObject("item"))
       }
 
       secondPageItems.each {
-        hasConsistentMaterialType(it)
+        hasConsistentMaterialType(it.getJsonObject("item"))
       }
 
       secondPageItems.each {
-        hasConsistentPermanentLoanType(it)
+        hasConsistentPermanentLoanType(it.getJsonObject("item"))
       }
 
       secondPageItems.each {
-        hasConsistentTemporaryLoanType(it)
+        hasConsistentTemporaryLoanType(it.getJsonObject("item"))
       }
 
       secondPageItems.each {
-        hasStatus(it)
+        hasStatus(it.getJsonObject("item"))
       }
 
       secondPageItems.each {
-        hasLocation(it)
+        hasLocation(it.getJsonObject("item"))
       }
   }
 
@@ -694,33 +694,37 @@ class ItemApiExamples extends Specification {
     then:
       assert getAllResponse.statusCode == 200
 
-      def items = JsonArrayHelper.toList(getAllResponse.json.getJsonArray("items"))
+      def wrappedItems = JsonArrayHelper.toList(getAllResponse.json.getJsonArray("items"))
 
-      assert items.size() == 2
+      assert wrappedItems.size() == 2
       assert getAllResponse.json.getInteger("totalRecords") == 2
 
-      assert items.stream()
+      assert wrappedItems.stream()
+        .map({it -> it.getJsonObject("item") })
         .filter({it.getString("barcode") == "645398607547"})
         .findFirst().get().getJsonObject("permanentLoanType").getString("id") == ApiTestSuite.canCirculateLoanType
 
-      assert items.stream()
+      assert wrappedItems.stream()
+        .map({it -> it.getJsonObject("item") })
         .filter({it.getString("barcode") == "645398607547"})
         .findFirst().get().containsKey("temporaryLoanType") == false
 
-      assert items.stream()
+      assert wrappedItems.stream()
+        .map({it -> it.getJsonObject("item") })
         .filter({it.getString("barcode") == "175848607547"})
         .findFirst().get().getJsonObject("permanentLoanType").getString("id") == ApiTestSuite.canCirculateLoanType
 
-      assert items.stream()
+      assert wrappedItems.stream()
+        .map({it -> it.getJsonObject("item") })
         .filter({it.getString("barcode") == "175848607547"})
         .findFirst().get().getJsonObject("temporaryLoanType").getString("id") == ApiTestSuite.courseReserveLoanType
 
-      items.each {
-        hasConsistentPermanentLoanType(it)
+      wrappedItems.each {
+        hasConsistentPermanentLoanType(it.getJsonObject("item"))
       }
 
-      items.each {
-        hasConsistentTemporaryLoanType(it)
+      wrappedItems.each {
+        hasConsistentTemporaryLoanType(it.getJsonObject("item"))
       }
   }
 
@@ -764,37 +768,37 @@ class ItemApiExamples extends Specification {
       assert items.size() == 1
       assert searchGetResponse.json.getInteger("totalRecords") == 1
 
-      def firstItem = items[0]
+      def firstItem = items[0].getJsonObject("item")
 
       assert firstItem.getString("title") == "Long Way to a Small Angry Planet"
       assert firstItem.getJsonObject("status").getString("name") == "Available"
 
       items.each {
-        selfLinkRespectsWayResourceWasReached(it)
+        selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
       }
 
       items.each {
-        selfLinkShouldBeReachable(it)
+        selfLinkShouldBeReachable(it.getJsonObject("item"))
       }
 
       items.each {
-        hasConsistentMaterialType(it)
+        hasConsistentMaterialType(it.getJsonObject("item"))
       }
 
       items.each {
-        hasConsistentPermanentLoanType(it)
+        hasConsistentPermanentLoanType(it.getJsonObject("item"))
       }
 
       items.each {
-        hasConsistentTemporaryLoanType(it)
+        hasConsistentTemporaryLoanType(it.getJsonObject("item"))
       }
 
       items.each {
-        hasStatus(it)
+        hasStatus(it.getJsonObject("item"))
       }
 
       items.each {
-        hasLocation(it)
+        hasLocation(it.getJsonObject("item"))
       }
   }
 
