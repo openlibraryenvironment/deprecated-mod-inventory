@@ -78,9 +78,6 @@ class ItemApiExamples extends Specification {
       assert permanentLoanType.getString("name") == "Can Circulate"
       assert temporaryLoanType.getString("id") == ApiTestSuite.courseReserveLoanType
       assert temporaryLoanType.getString("name") == "Course Reserves"
-
-      selfLinkRespectsWayResourceWasReached(createdItem)
-      selfLinkShouldBeReachable(createdItem)
   }
 
   void "Can create an item with an ID"() {
@@ -117,9 +114,6 @@ class ItemApiExamples extends Specification {
       def createdItem = getResponse.json.getJsonObject("item")
 
       assert createdItem.getString("id") == itemId
-
-      selfLinkRespectsWayResourceWasReached(createdItem)
-      selfLinkShouldBeReachable(createdItem)
   }
 
   void "Can create an item based upon an instance"() {
@@ -170,9 +164,6 @@ class ItemApiExamples extends Specification {
       assert materialType.getString("name") == "Book"
       assert permanentLoanType.getString("id") == ApiTestSuite.canCirculateLoanType
       assert permanentLoanType.getString("name") == "Can Circulate"
-
-      selfLinkRespectsWayResourceWasReached(createdItem)
-      selfLinkShouldBeReachable(createdItem)
   }
 
   void "Can create an item without a barcode"() {
@@ -336,9 +327,6 @@ class ItemApiExamples extends Specification {
       assert permanentLoanType.getString("name") == "Can Circulate"
 
       assert getResponse.json.containsKey("temporaryLoanType") == false
-
-      selfLinkRespectsWayResourceWasReached(createdItem)
-      selfLinkShouldBeReachable(createdItem)
   }
 
   void "Cannot create a second item with the same barcode"() {
@@ -418,9 +406,6 @@ class ItemApiExamples extends Specification {
       assert materialType.getString("name") == "Book"
       assert permanentLoanType.getString("id") == ApiTestSuite.canCirculateLoanType
       assert permanentLoanType.getString("name") == "Can Circulate"
-
-      selfLinkRespectsWayResourceWasReached(updatedItem)
-      selfLinkShouldBeReachable(updatedItem)
   }
 
   void "Cannot update an item that does not exist"() {
@@ -614,14 +599,6 @@ class ItemApiExamples extends Specification {
       assert secondPageResponse.json.getInteger("totalRecords") == 5
 
       firstPageWrappedItems.each {
-        selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
-      }
-
-      firstPageWrappedItems.each {
-        selfLinkShouldBeReachable(it.getJsonObject("item"))
-      }
-
-      firstPageWrappedItems.each {
         hasConsistentMaterialType(it)
       }
 
@@ -639,14 +616,6 @@ class ItemApiExamples extends Specification {
 
       firstPageWrappedItems.each {
         hasLocation(it.getJsonObject("item"))
-      }
-
-      secondPageWrappedItems.each {
-        selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
-      }
-
-      secondPageWrappedItems.each {
-        selfLinkShouldBeReachable(it.getJsonObject("item"))
       }
 
       secondPageWrappedItems.each {
@@ -769,14 +738,6 @@ class ItemApiExamples extends Specification {
       assert firstItem.getJsonObject("status").getString("name") == "Available"
 
       wrappedItems.each {
-        selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
-      }
-
-      wrappedItems.each {
-        selfLinkShouldBeReachable(it.getJsonObject("item"))
-      }
-
-      wrappedItems.each {
         hasConsistentMaterialType(it)
       }
 
@@ -795,25 +756,6 @@ class ItemApiExamples extends Specification {
       wrappedItems.each {
         hasLocation(it.getJsonObject("item"))
       }
-  }
-
-  private void selfLinkRespectsWayResourceWasReached(JsonObject item) {
-    assert containsApiRoot(item.getJsonObject("links").getString("self"))
-  }
-
-  private boolean containsApiRoot(String link) {
-    link.contains(ApiTestSuite.apiRoot())
-  }
-
-  private void selfLinkShouldBeReachable(JsonObject item) {
-    def getCompleted = new CompletableFuture<Response>()
-
-    okapiClient.get(item.getJsonObject("links").getString("self"),
-      ResponseHandler.json(getCompleted))
-
-    Response getResponse = getCompleted.get(5, TimeUnit.SECONDS);
-
-    assert getResponse.statusCode == 200
   }
 
   private void hasStatus(JsonObject item) {

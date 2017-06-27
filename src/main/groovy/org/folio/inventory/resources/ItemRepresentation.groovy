@@ -6,22 +6,15 @@ import org.folio.inventory.common.WebContext
 import org.folio.inventory.domain.Item
 
 class ItemRepresentation {
-  private final String relativeItemsPath
-
-  def ItemRepresentation(String relativeItemsPath) {
-    this.relativeItemsPath = relativeItemsPath
-  }
-
   JsonObject toJson(
     Item item,
     JsonObject materialType,
     JsonObject permanentLoanType,
-    JsonObject temporaryLoanType,
-    WebContext context) {
+    JsonObject temporaryLoanType) {
 
     def representation = new JsonObject()
 
-    def itemRepresentation = toJson(item, context)
+    def itemRepresentation = toJson(item)
 
     representation.put("item", itemRepresentation)
 
@@ -40,7 +33,7 @@ class ItemRepresentation {
     representation
   }
 
-  JsonObject toJson(Item item, WebContext context) {
+  JsonObject toJson(Item item) {
     def representation = new JsonObject()
 
     representation.put("id", item.id)
@@ -67,18 +60,13 @@ class ItemRepresentation {
         new JsonObject().put("name", item.location))
     }
 
-    representation.put('links',
-      ['self': context.absoluteUrl(
-        "${relativeItemsPath}/${item.id}").toString()])
-
     representation
   }
 
   JsonObject toJson(
     Map wrappedItems,
     Map<String, JsonObject> materialTypes,
-    Map<String, JsonObject> loanTypes,
-    WebContext context) {
+    Map<String, JsonObject> loanTypes) {
 
     def representation = new JsonObject()
 
@@ -90,7 +78,7 @@ class ItemRepresentation {
       def permanentLoanType = loanTypes.get(item?.permanentLoanTypeId)
       def temporaryLoanType = loanTypes.get(item?.temporaryLoanTypeId)
 
-      results.add(toJson(item, materialType, permanentLoanType, temporaryLoanType, context))
+      results.add(toJson(item, materialType, permanentLoanType, temporaryLoanType))
     }
 
     representation

@@ -216,9 +216,9 @@ class Items {
               temporaryLoanTypeFuture.join().json : null
 
             JsonResponse.success(routingContext.response(),
-              new ItemRepresentation(relativeItemsPath()).toJson(item,
+              new ItemRepresentation().toJson(item,
                 foundMaterialType, foundPermanentLoanType,
-                foundTemporaryLoanType, context))
+                foundTemporaryLoanType))
           })
         }
         else {
@@ -339,8 +339,8 @@ class Items {
         .collect(Collectors.toMap({ it.getString("id") }, { it }))
 
       JsonResponse.success(routingContext.response(),
-        new ItemRepresentation(relativeItemsPath())
-          .toJson(wrappedItems, foundMaterialTypes, foundLoanTypes, context))
+        new ItemRepresentation()
+          .toJson(wrappedItems, foundMaterialTypes, foundLoanTypes))
     })
   }
 }
