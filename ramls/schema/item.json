@@ -9,7 +9,9 @@
       "type": "string"
     },
     "title": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
     },
     "barcode": {
       "type": "string"
@@ -21,51 +23,16 @@
           "type": "string"
         }
       },
-      "required": [
-        "name"
-      ]
+      "additionalProperties": false
     },
-    "materialType": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id"
-      ]
+    "materialTypeId": {
+      "type": "string"
     },
-    "permanentLoanType": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id"
-      ]
+    "permanentLoanTypeId": {
+      "type": "string"
     },
-    "temporaryLoanType": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id"
-      ]
+    "temporaryLoanTypeId": {
+      "type": "string"
     },
     "location": {
       "type": "object",
@@ -74,14 +41,13 @@
           "type": "string"
         }
       },
-      "required": [
-        "name"
-      ]
+      "additionalProperties": false
     }
   },
+  "additionalProperties": false,
   "required": [
     "title",
-    "materialType",
-    "permanentLoanType"
+    "materialTypeId",
+    "permanentLoanTypeId"
   ]
 }

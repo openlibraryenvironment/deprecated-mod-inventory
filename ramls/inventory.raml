@@ -1,6 +1,6 @@
 #%RAML 0.8
 title: Inventory API
-version: v2.0
+version: v3.0
 protocols: [ HTTP, HTTPS ]
 baseUri: http://localhost
 
@@ -9,8 +9,11 @@ documentation:
     content: <b>API for interacting with an inventory of physical resources</b>
 
 schemas:
+ - compositeItem.json: !include schema/compositeItem.json
+ - compositeItems.json: !include schema/compositeItems.json
  - item.json: !include schema/item.json
- - items: !include schema/items.json
+ - materialType.json: !include schema/materialType.json
+ - loanType.json: !include schema/loanType.json
  - instance.json: !include schema/instance.json
  - instances: !include schema/instances.json
  - context: !include schema/instance_context.json
@@ -31,10 +34,10 @@ resourceTypes:
     displayName: Items
     type:
       collection:
-        exampleCollection: !include examples/items_get.json
-        schemaCollection: items
-        schemaItem: item.json
-        exampleItem: !include examples/item_get.json
+        exampleCollection: !include examples/composite_items_get.json
+        schemaCollection: compositeItems.json
+        schemaItem: compositeItem.json
+        exampleItem: !include examples/composite_item_get.json
     get:
       is: [pageable,
           searchable: {description: "by title (using CQL)",
@@ -55,8 +58,8 @@ resourceTypes:
     /{itemId}:
       type:
         collection-item:
-          exampleItem: !include examples/item_get.json
-          schema: item.json
+          exampleItem: !include examples/composite_item_get.json
+          schema: compositeItem.json
       get:
         responses:
           501:

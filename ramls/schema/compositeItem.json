@@ -1,0 +1,27 @@
+
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "item": {
+      "type": "object",
+      "$ref": "item.json"
+    },
+    "permanentLoanType": {
+      "type": "object",
+      "$ref": "loanType.json"
+    },
+    "temporaryLoanType": {
+      "type": "object",
+      "$ref": "loanType.json"
+    },
+    "materialType": {
+      "type": "object",
+      "$ref": "materialType.json"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "item"
+  ]
+}
