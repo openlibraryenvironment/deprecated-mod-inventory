@@ -13,7 +13,7 @@ class ItemApiClient {
     def postCompleted = new CompletableFuture<Response>()
 
     client.post(ApiRoot.items(),
-      newItemRequest, ResponseHandler.any(postCompleted))
+      new JsonObject().put("item", newItemRequest), ResponseHandler.any(postCompleted))
 
     Response postResponse = postCompleted.get(5, TimeUnit.SECONDS);
 
@@ -28,5 +28,17 @@ class ItemApiClient {
     assert getResponse.statusCode == 200
 
     getResponse.json.getJsonObject("item")
+  }
+
+  static Response submitCreateItemRequest(
+    OkapiHttpClient client,
+    JsonObject newItem) {
+
+    def postCompleted = new CompletableFuture<Response>()
+
+    client.post(ApiRoot.items(),
+      new JsonObject().put("item", newItem), ResponseHandler.any(postCompleted))
+
+    postCompleted.get(5, TimeUnit.SECONDS)
   }
 }

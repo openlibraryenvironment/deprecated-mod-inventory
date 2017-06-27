@@ -42,12 +42,8 @@ class ItemApiExamples extends Specification {
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 201
@@ -95,12 +91,8 @@ class ItemApiExamples extends Specification {
         .put("barcode", "645398607547")
 
     when:
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 201
@@ -137,12 +129,8 @@ class ItemApiExamples extends Specification {
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 201
@@ -183,12 +171,8 @@ class ItemApiExamples extends Specification {
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 201
@@ -226,12 +210,8 @@ class ItemApiExamples extends Specification {
       .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 201
@@ -264,12 +244,8 @@ class ItemApiExamples extends Specification {
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 422
@@ -289,12 +265,8 @@ class ItemApiExamples extends Specification {
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 422
@@ -315,12 +287,8 @@ class ItemApiExamples extends Specification {
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 201
@@ -370,12 +338,8 @@ class ItemApiExamples extends Specification {
         .put("materialType", bookMaterialType())
         .put("location", new JsonObject().put("name", "Main Library"))
 
-      def postCompleted = new CompletableFuture<Response>()
-
-      okapiClient.post(ApiRoot.items(),
-        newItemRequest, ResponseHandler.any(postCompleted))
-
-      Response postResponse = postCompleted.get(5, TimeUnit.SECONDS)
+      Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
+        newItemRequest)
 
     then:
       assert postResponse.statusCode == 400
@@ -399,7 +363,7 @@ class ItemApiExamples extends Specification {
       def putCompleted = new CompletableFuture<Response>()
 
       okapiClient.put(itemLocation,
-        updateItemRequest, ResponseHandler.any(putCompleted))
+        new JsonObject().put("item", updateItemRequest), ResponseHandler.any(putCompleted))
 
       Response putResponse = putCompleted.get(5, TimeUnit.SECONDS)
 
@@ -447,7 +411,8 @@ class ItemApiExamples extends Specification {
       def putCompleted = new CompletableFuture<Response>()
 
       okapiClient.put(new URL("${ApiRoot.items()}/${updateItemRequest.getString("id")}"),
-        updateItemRequest, ResponseHandler.any(putCompleted))
+        new JsonObject().put("item", updateItemRequest),
+        ResponseHandler.any(putCompleted))
 
       Response putResponse = putCompleted.get(5, TimeUnit.SECONDS)
 
@@ -478,7 +443,8 @@ class ItemApiExamples extends Specification {
       def putCompleted = new CompletableFuture<Response>()
 
       okapiClient.put(nodItemLocation,
-        changedNodItem, ResponseHandler.any(putCompleted))
+        new JsonObject().put("item", changedNodItem),
+        ResponseHandler.any(putCompleted))
 
       Response putResponse = putCompleted.get(5, TimeUnit.SECONDS)
 

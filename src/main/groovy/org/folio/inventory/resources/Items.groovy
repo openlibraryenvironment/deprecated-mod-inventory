@@ -82,7 +82,7 @@ class Items {
 
     Map itemRequest = new VertxBodyParser().toMap(routingContext)
 
-    def newItem = requestToItem(itemRequest)
+    def newItem = requestToItem(itemRequest.item)
 
     def itemCollection = storage.getItemCollection(context)
 
@@ -117,7 +117,7 @@ class Items {
 
     Map itemRequest = new VertxBodyParser().toMap(routingContext)
 
-    def updatedItem = requestToItem(itemRequest)
+    def updatedItem = requestToItem(itemRequest.item)
 
     def itemCollection = storage.getItemCollection(context)
 
