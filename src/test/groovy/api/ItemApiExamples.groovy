@@ -36,9 +36,9 @@ class ItemApiExamples extends Specification {
         .put("instanceId", createdInstance.id)
         .put("barcode", "645398607547")
         .put("status", new JsonObject().put("name", "Available"))
-        .put("materialType", bookMaterialType())
-        .put("permanentLoanType", canCirculateLoanType())
-        .put("temporaryLoanType", courseReservesLoanType())
+        .put("materialTypeId", ApiTestSuite.bookMaterialType)
+        .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
+        .put("temporaryLoanTypeId", ApiTestSuite.courseReserveLoanType)
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
@@ -63,13 +63,21 @@ class ItemApiExamples extends Specification {
       assert createdItem.getString("title") == "Long Way to a Small Angry Planet"
       assert createdItem.getString("barcode") == "645398607547"
       assert createdItem.getJsonObject("status").getString("name") == "Available"
-      assert createdItem.getJsonObject("materialType").getString("id") == ApiTestSuite.bookMaterialType
-      assert createdItem.getJsonObject("materialType").getString("name") == "Book"
-      assert createdItem.getJsonObject("permanentLoanType").getString("id") == ApiTestSuite.canCirculateLoanType
-      assert createdItem.getJsonObject("permanentLoanType").getString("name") == "Can Circulate"
-      assert createdItem.getJsonObject("temporaryLoanType").getString("id") == ApiTestSuite.courseReserveLoanType
-      assert createdItem.getJsonObject("temporaryLoanType").getString("name") == "Course Reserves"
       assert createdItem.getJsonObject("location").getString("name") == "Annex Library"
+      assert createdItem.getString("materialTypeId") == ApiTestSuite.bookMaterialType
+      assert createdItem.getString("permanentLoanTypeId") == ApiTestSuite.canCirculateLoanType
+      assert createdItem.getString("temporaryLoanTypeId") == ApiTestSuite.courseReserveLoanType
+
+      def materialType = getResponse.json.getJsonObject("materialType")
+      def permanentLoanType = getResponse.json.getJsonObject("permanentLoanType")
+      def temporaryLoanType = getResponse.json.getJsonObject("temporaryLoanType")
+
+      assert materialType.getString("id") == ApiTestSuite.bookMaterialType
+      assert materialType.getString("name") == "Book"
+      assert permanentLoanType.getString("id") == ApiTestSuite.canCirculateLoanType
+      assert permanentLoanType.getString("name") == "Can Circulate"
+      assert temporaryLoanType.getString("id") == ApiTestSuite.courseReserveLoanType
+      assert temporaryLoanType.getString("name") == "Course Reserves"
 
       selfLinkRespectsWayResourceWasReached(createdItem)
       selfLinkShouldBeReachable(createdItem)
@@ -86,8 +94,8 @@ class ItemApiExamples extends Specification {
         .put("id", itemId)
         .put("title", createdInstance.title)
         .put("instanceId", createdInstance.id)
-        .put("materialType", bookMaterialType())
-        .put("permanentLoanType", canCirculateLoanType())
+        .put("materialTypeId", ApiTestSuite.bookMaterialType)
+        .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
         .put("barcode", "645398607547")
 
     when:
@@ -124,8 +132,8 @@ class ItemApiExamples extends Specification {
         .put("instanceId", createdInstance.id)
         .put("barcode", "645398607547")
         .put("status", new JsonObject().put("name", "Available"))
-        .put("materialType", bookMaterialType())
-        .put("permanentLoanType", canCirculateLoanType())
+        .put("materialTypeId", ApiTestSuite.bookMaterialType)
+        .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
@@ -151,11 +159,17 @@ class ItemApiExamples extends Specification {
       assert createdItem.getString("instanceId") == createdInstance.id
       assert createdItem.getString("barcode") == "645398607547"
       assert createdItem.getJsonObject("status").getString("name") == "Available"
-      assert createdItem.getJsonObject("materialType").getString("id") == ApiTestSuite.bookMaterialType
-      assert createdItem.getJsonObject("materialType").getString("name") == "Book"
-      assert createdItem.getJsonObject("permanentLoanType").getString("id") == ApiTestSuite.canCirculateLoanType
-      assert createdItem.getJsonObject("permanentLoanType").getString("name") == "Can Circulate"
       assert createdItem.getJsonObject("location").getString("name") == "Annex Library"
+      assert createdItem.getString("materialTypeId") == ApiTestSuite.bookMaterialType
+      assert createdItem.getString("permanentLoanTypeId") == ApiTestSuite.canCirculateLoanType
+
+      def materialType = getResponse.json.getJsonObject("materialType")
+      def permanentLoanType = getResponse.json.getJsonObject("permanentLoanType")
+
+      assert materialType.getString("id") == ApiTestSuite.bookMaterialType
+      assert materialType.getString("name") == "Book"
+      assert permanentLoanType.getString("id") == ApiTestSuite.canCirculateLoanType
+      assert permanentLoanType.getString("name") == "Can Circulate"
 
       selfLinkRespectsWayResourceWasReached(createdItem)
       selfLinkShouldBeReachable(createdItem)
@@ -166,8 +180,8 @@ class ItemApiExamples extends Specification {
       def newItemRequest = new JsonObject()
         .put("title", "Nod")
         .put("status", new JsonObject().put("name", "Available"))
-        .put("materialType", bookMaterialType())
-        .put("permanentLoanType", canCirculateLoanType())
+        .put("materialTypeId", ApiTestSuite.bookMaterialType)
+        .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
@@ -197,16 +211,16 @@ class ItemApiExamples extends Specification {
       .put("title", "Temeraire")
       .put("status", new JsonObject().put("name", "Available"))
       .put("location", new JsonObject().put("name", "Main Library"))
-      .put("materialType", bookMaterialType())
-      .put("permanentLoanType", canCirculateLoanType())
+      .put("materialTypeId", ApiTestSuite.bookMaterialType)
+      .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
 
     ItemApiClient.createItem(okapiClient, firstItemRequest)
 
     def newItemRequest = new JsonObject()
       .put("title", "Nod")
       .put("status", new JsonObject().put("name", "Available"))
-      .put("materialType", bookMaterialType())
-      .put("permanentLoanType", canCirculateLoanType())
+      .put("materialTypeId", ApiTestSuite.bookMaterialType)
+      .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
       .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
@@ -240,7 +254,7 @@ class ItemApiExamples extends Specification {
         .put("instanceId", createdInstance.id)
         .put("barcode", "645398607547")
         .put("status", new JsonObject().put("name", "Available"))
-        .put("permanentLoanType", canCirculateLoanType())
+        .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
@@ -261,7 +275,7 @@ class ItemApiExamples extends Specification {
         .put("instanceId", createdInstance.id)
         .put("barcode", "645398607547")
         .put("status", new JsonObject().put("name", "Available"))
-        .put("materialType", bookMaterialType())
+        .put("materialTypeId", ApiTestSuite.bookMaterialType)
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
@@ -282,8 +296,8 @@ class ItemApiExamples extends Specification {
         .put("instanceId", createdInstance.id)
         .put("barcode", "645398607547")
         .put("status", new JsonObject().put("name", "Available"))
-        .put("materialType", bookMaterialType())
-        .put("permanentLoanType", canCirculateLoanType())
+        .put("materialTypeId", ApiTestSuite.bookMaterialType)
+        .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
         .put("location", new JsonObject().put("name", "Annex Library"))
 
     when:
@@ -309,11 +323,19 @@ class ItemApiExamples extends Specification {
       assert createdItem.getString("instanceId") == createdInstance.id
       assert createdItem.getString("barcode") == "645398607547"
       assert createdItem.getJsonObject("status").getString("name") == "Available"
-      assert createdItem.getJsonObject("materialType").getString("id") == ApiTestSuite.bookMaterialType
-      assert createdItem.getJsonObject("materialType").getString("name") == "Book"
-      assert createdItem.getJsonObject("permanentLoanType").getString("id") == ApiTestSuite.canCirculateLoanType
-      assert createdItem.getJsonObject("permanentLoanType").getString("name") == "Can Circulate"
       assert createdItem.getJsonObject("location").getString("name") == "Annex Library"
+      assert createdItem.getString("materialTypeId") == ApiTestSuite.bookMaterialType
+      assert createdItem.getString("permanentLoanTypeId") == ApiTestSuite.canCirculateLoanType
+
+      def materialType = getResponse.json.getJsonObject("materialType")
+      def permanentLoanType = getResponse.json.getJsonObject("permanentLoanType")
+
+      assert materialType.getString("id") == ApiTestSuite.bookMaterialType
+      assert materialType.getString("name") == "Book"
+      assert permanentLoanType.getString("id") == ApiTestSuite.canCirculateLoanType
+      assert permanentLoanType.getString("name") == "Can Circulate"
+
+      assert getResponse.json.containsKey("temporaryLoanType") == false
 
       selfLinkRespectsWayResourceWasReached(createdItem)
       selfLinkShouldBeReachable(createdItem)
@@ -335,7 +357,7 @@ class ItemApiExamples extends Specification {
         .put("instanceId", nodInstance.id)
         .put("barcode", "645398607547")
         .put("status", new JsonObject().put("name", "Available"))
-        .put("materialType", bookMaterialType())
+        .put("materialTypeId", ApiTestSuite.bookMaterialType)
         .put("location", new JsonObject().put("name", "Main Library"))
 
       Response postResponse = ItemApiClient.submitCreateItemRequest(okapiClient,
@@ -385,11 +407,17 @@ class ItemApiExamples extends Specification {
       assert updatedItem.getString("instanceId") == createdInstance.id
       assert updatedItem.getString("barcode") == "645398607547"
       assert updatedItem.getJsonObject("status").getString("name") == "Checked Out"
-      assert updatedItem.getJsonObject("materialType").getString("id") == ApiTestSuite.bookMaterialType
-      assert updatedItem.getJsonObject("materialType").getString("name") == "Book"
-      assert updatedItem.getJsonObject("permanentLoanType").getString("id") == ApiTestSuite.canCirculateLoanType
-      assert updatedItem.getJsonObject("permanentLoanType").getString("name") == "Can Circulate"
       assert updatedItem.getJsonObject("location").getString("name") == "Main Library"
+      assert updatedItem.getString("materialTypeId") == ApiTestSuite.bookMaterialType
+      assert updatedItem.getString("permanentLoanTypeId") == ApiTestSuite.canCirculateLoanType
+
+      def materialType = getResponse.json.getJsonObject("materialType")
+      def permanentLoanType = getResponse.json.getJsonObject("permanentLoanType")
+
+      assert materialType.getString("id") == ApiTestSuite.bookMaterialType
+      assert materialType.getString("name") == "Book"
+      assert permanentLoanType.getString("id") == ApiTestSuite.canCirculateLoanType
+      assert permanentLoanType.getString("name") == "Can Circulate"
 
       selfLinkRespectsWayResourceWasReached(updatedItem)
       selfLinkShouldBeReachable(updatedItem)
@@ -403,8 +431,8 @@ class ItemApiExamples extends Specification {
         .put("instanceId", UUID.randomUUID().toString())
         .put("barcode", "546747342365")
         .put("status", new JsonObject().put("name", "Available"))
-        .put("materialType", bookMaterialType())
-        .put("permanentLoanType", canCirculateLoanType())
+        .put("materialTypeId", ApiTestSuite.bookMaterialType)
+        .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
         .put("location", new JsonObject().put("name", "Main Library"))
 
     when:
@@ -538,16 +566,19 @@ class ItemApiExamples extends Specification {
       def smallAngryInstance = createInstance(smallAngryPlanet(UUID.randomUUID()))
 
       createItem(smallAngryInstance.title, smallAngryInstance.id,
-        "645398607547", bookMaterialType(), canCirculateLoanType(), null)
+        "645398607547", ApiTestSuite.bookMaterialType,
+        ApiTestSuite.canCirculateLoanType, null)
 
       createItem(smallAngryInstance.title, smallAngryInstance.id,
-        "175848607547", bookMaterialType(), courseReservesLoanType(), null)
+        "175848607547", ApiTestSuite.bookMaterialType,
+        ApiTestSuite.courseReserveLoanType, null)
 
       def girlOnTheTrainInstance = createInstance(girlOnTheTrain(UUID.randomUUID()))
 
       createItem(girlOnTheTrainInstance.title, girlOnTheTrainInstance.id,
-        "645334645247", dvdMaterialType(), canCirculateLoanType(),
-        courseReservesLoanType())
+        "645334645247", ApiTestSuite.dvdMaterialType,
+        ApiTestSuite.canCirculateLoanType,
+        ApiTestSuite.courseReserveLoanType)
 
       def nodInstance = createInstance(nod(UUID.randomUUID()))
 
@@ -572,69 +603,69 @@ class ItemApiExamples extends Specification {
       assert firstPageResponse.statusCode == 200
       assert secondPageResponse.statusCode == 200
 
-      def firstPageItems = JsonArrayHelper.toList(firstPageResponse.json.getJsonArray("items"))
+      def firstPageWrappedItems = JsonArrayHelper.toList(firstPageResponse.json.getJsonArray("items"))
 
-      assert firstPageItems.size() == 3
+      assert firstPageWrappedItems.size() == 3
       assert firstPageResponse.json.getInteger("totalRecords") == 5
 
-      def secondPageItems = JsonArrayHelper.toList(secondPageResponse.json.getJsonArray("items"))
+      def secondPageWrappedItems = JsonArrayHelper.toList(secondPageResponse.json.getJsonArray("items"))
 
-      assert secondPageItems.size() == 2
+      assert secondPageWrappedItems.size() == 2
       assert secondPageResponse.json.getInteger("totalRecords") == 5
 
-      firstPageItems.each {
+      firstPageWrappedItems.each {
         selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
       }
 
-      firstPageItems.each {
+      firstPageWrappedItems.each {
         selfLinkShouldBeReachable(it.getJsonObject("item"))
       }
 
-      firstPageItems.each {
-        hasConsistentMaterialType(it.getJsonObject("item"))
+      firstPageWrappedItems.each {
+        hasConsistentMaterialType(it)
       }
 
-      firstPageItems.each {
-        hasConsistentPermanentLoanType(it.getJsonObject("item"))
+      firstPageWrappedItems.each {
+        hasConsistentPermanentLoanType(it)
       }
 
-      firstPageItems.each {
-        hasConsistentTemporaryLoanType(it.getJsonObject("item"))
+      firstPageWrappedItems.each {
+        hasConsistentTemporaryLoanType(it)
       }
 
-      firstPageItems.each {
+      firstPageWrappedItems.each {
         hasStatus(it.getJsonObject("item"))
       }
 
-      firstPageItems.each {
+      firstPageWrappedItems.each {
         hasLocation(it.getJsonObject("item"))
       }
 
-      secondPageItems.each {
+      secondPageWrappedItems.each {
         selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
       }
 
-      secondPageItems.each {
+      secondPageWrappedItems.each {
         selfLinkShouldBeReachable(it.getJsonObject("item"))
       }
 
-      secondPageItems.each {
-        hasConsistentMaterialType(it.getJsonObject("item"))
+      secondPageWrappedItems.each {
+        hasConsistentMaterialType(it)
       }
 
-      secondPageItems.each {
-        hasConsistentPermanentLoanType(it.getJsonObject("item"))
+      secondPageWrappedItems.each {
+        hasConsistentPermanentLoanType(it)
       }
 
-      secondPageItems.each {
-        hasConsistentTemporaryLoanType(it.getJsonObject("item"))
+      secondPageWrappedItems.each {
+        hasConsistentTemporaryLoanType(it)
       }
 
-      secondPageItems.each {
+      secondPageWrappedItems.each {
         hasStatus(it.getJsonObject("item"))
       }
 
-      secondPageItems.each {
+      secondPageWrappedItems.each {
         hasLocation(it.getJsonObject("item"))
       }
   }
@@ -644,10 +675,12 @@ class ItemApiExamples extends Specification {
       def smallAngryInstance = createInstance(smallAngryPlanet(UUID.randomUUID()))
 
       createItem(smallAngryInstance.title, smallAngryInstance.id,
-        "645398607547", bookMaterialType(), canCirculateLoanType(), null)
+        "645398607547", ApiTestSuite.bookMaterialType,
+        ApiTestSuite.canCirculateLoanType, null)
 
       createItem(smallAngryInstance.title, smallAngryInstance.id,
-        "175848607547", bookMaterialType(), canCirculateLoanType(), courseReservesLoanType())
+        "175848607547", ApiTestSuite.bookMaterialType,
+        ApiTestSuite.canCirculateLoanType, ApiTestSuite.courseReserveLoanType)
 
     when:
       def getAllCompleted = new CompletableFuture<Response>()
@@ -666,31 +699,27 @@ class ItemApiExamples extends Specification {
       assert getAllResponse.json.getInteger("totalRecords") == 2
 
       assert wrappedItems.stream()
-        .map({it -> it.getJsonObject("item") })
-        .filter({it.getString("barcode") == "645398607547"})
+        .filter({it.getJsonObject("item").getString("barcode") == "645398607547"})
         .findFirst().get().getJsonObject("permanentLoanType").getString("id") == ApiTestSuite.canCirculateLoanType
 
       assert wrappedItems.stream()
-        .map({it -> it.getJsonObject("item") })
-        .filter({it.getString("barcode") == "645398607547"})
+        .filter({it.getJsonObject("item").getString("barcode") == "645398607547"})
         .findFirst().get().containsKey("temporaryLoanType") == false
 
       assert wrappedItems.stream()
-        .map({it -> it.getJsonObject("item") })
-        .filter({it.getString("barcode") == "175848607547"})
+        .filter({it.getJsonObject("item").getString("barcode") == "175848607547"})
         .findFirst().get().getJsonObject("permanentLoanType").getString("id") == ApiTestSuite.canCirculateLoanType
 
       assert wrappedItems.stream()
-        .map({it -> it.getJsonObject("item") })
-        .filter({it.getString("barcode") == "175848607547"})
+        .filter({it.getJsonObject("item").getString("barcode") == "175848607547"})
         .findFirst().get().getJsonObject("temporaryLoanType").getString("id") == ApiTestSuite.courseReserveLoanType
 
       wrappedItems.each {
-        hasConsistentPermanentLoanType(it.getJsonObject("item"))
+        hasConsistentPermanentLoanType(it)
       }
 
       wrappedItems.each {
-        hasConsistentTemporaryLoanType(it.getJsonObject("item"))
+        hasConsistentTemporaryLoanType(it)
       }
   }
 
@@ -729,41 +758,41 @@ class ItemApiExamples extends Specification {
     then:
       assert searchGetResponse.statusCode == 200
 
-      def items = JsonArrayHelper.toList(searchGetResponse.json.getJsonArray("items"))
+      def wrappedItems = JsonArrayHelper.toList(searchGetResponse.json.getJsonArray("items"))
 
-      assert items.size() == 1
+      assert wrappedItems.size() == 1
       assert searchGetResponse.json.getInteger("totalRecords") == 1
 
-      def firstItem = items[0].getJsonObject("item")
+      def firstItem = wrappedItems[0].getJsonObject("item")
 
       assert firstItem.getString("title") == "Long Way to a Small Angry Planet"
       assert firstItem.getJsonObject("status").getString("name") == "Available"
 
-      items.each {
+      wrappedItems.each {
         selfLinkRespectsWayResourceWasReached(it.getJsonObject("item"))
       }
 
-      items.each {
+      wrappedItems.each {
         selfLinkShouldBeReachable(it.getJsonObject("item"))
       }
 
-      items.each {
-        hasConsistentMaterialType(it.getJsonObject("item"))
+      wrappedItems.each {
+        hasConsistentMaterialType(it)
       }
 
-      items.each {
-        hasConsistentPermanentLoanType(it.getJsonObject("item"))
+      wrappedItems.each {
+        hasConsistentPermanentLoanType(it)
       }
 
-      items.each {
-        hasConsistentTemporaryLoanType(it.getJsonObject("item"))
+      wrappedItems.each {
+        hasConsistentTemporaryLoanType(it)
       }
 
-      items.each {
+      wrappedItems.each {
         hasStatus(it.getJsonObject("item"))
       }
 
-      items.each {
+      wrappedItems.each {
         hasLocation(it.getJsonObject("item"))
       }
   }
@@ -792,8 +821,11 @@ class ItemApiExamples extends Specification {
     assert item.getJsonObject("status").containsKey("name")
   }
 
-  private void hasConsistentMaterialType(JsonObject item) {
-    def materialType = item.getJsonObject("materialType")
+  private void hasConsistentMaterialType(JsonObject wrappedItem) {
+    def materialType = wrappedItem.getJsonObject("materialType")
+
+    assert wrappedItem.getJsonObject("item").getString("materialTypeId") ==
+      materialType.getString("id")
 
     switch(materialType.getString("id")) {
       case ApiTestSuite.bookMaterialType:
@@ -812,12 +844,26 @@ class ItemApiExamples extends Specification {
     }
   }
 
-  private void hasConsistentPermanentLoanType(JsonObject item) {
-    hasConsistentLoanType(item.getJsonObject("permanentLoanType"))
+  private void hasConsistentPermanentLoanType(JsonObject wrappedItem) {
+    def permanentLoanType = wrappedItem.getJsonObject("permanentLoanType")
+
+    assert wrappedItem.getJsonObject("item").getString("permanentLoanTypeId") ==
+      permanentLoanType.getString("id")
+
+    hasConsistentLoanType(permanentLoanType)
   }
 
-  private void hasConsistentTemporaryLoanType(JsonObject item) {
-    hasConsistentLoanType(item.getJsonObject("temporaryLoanType"))
+  private void hasConsistentTemporaryLoanType(JsonObject wrappedItem) {
+    def temporaryLoanType = wrappedItem.getJsonObject("temporaryLoanType")
+
+    if(temporaryLoanType == null) {
+      return
+    }
+
+    assert wrappedItem.getJsonObject("item").getString("temporaryLoanTypeId") ==
+      temporaryLoanType.getString("id")
+
+    hasConsistentLoanType(temporaryLoanType)
   }
 
   private void hasConsistentLoanType(JsonObject loanType) {
@@ -851,16 +897,17 @@ class ItemApiExamples extends Specification {
   }
 
   private JsonObject createItem(String title, String instanceId, String barcode) {
-    createItem(title, instanceId, barcode, bookMaterialType(), canCirculateLoanType(), null)
+    createItem(title, instanceId, barcode, ApiTestSuite.bookMaterialType,
+      ApiTestSuite.canCirculateLoanType, null)
   }
 
   private JsonObject createItem(
     String title,
     String instanceId,
     String barcode,
-    JsonObject materialType,
-    JsonObject permanentLoanType,
-    JsonObject temporaryLoanType) {
+    String materialTypeId,
+    String permanentLoanTypeId,
+    String temporaryLoanTypeId) {
 
     def newItemRequest = new JsonObject()
       .put("title", title)
@@ -869,42 +916,18 @@ class ItemApiExamples extends Specification {
       .put("status", new JsonObject().put("name", "Available"))
       .put("location", new JsonObject().put("name", "Main Library"))
 
-    if(materialType != null) {
-      newItemRequest.put("materialType", materialType)
+    if(materialTypeId != null) {
+      newItemRequest.put("materialTypeId", materialTypeId)
     }
 
-    if(permanentLoanType != null) {
-      newItemRequest.put("permanentLoanType", permanentLoanType)
+    if(permanentLoanTypeId != null) {
+      newItemRequest.put("permanentLoanTypeId", permanentLoanTypeId)
     }
 
-    if(temporaryLoanType != null) {
-      newItemRequest.put("temporaryLoanType", temporaryLoanType)
+    if(temporaryLoanTypeId != null) {
+      newItemRequest.put("temporaryLoanTypeId", temporaryLoanTypeId)
     }
 
     ItemApiClient.createItem(okapiClient, newItemRequest)
-  }
-
-  private JsonObject bookMaterialType() {
-    new JsonObject()
-      .put("id", "${ApiTestSuite.bookMaterialType}")
-      .put("name", "Book")
-  }
-
-  private JsonObject dvdMaterialType() {
-    new JsonObject()
-      .put("id", "${ApiTestSuite.dvdMaterialType}")
-      .put("name", "DVD")
-  }
-
-  private JsonObject canCirculateLoanType() {
-    new JsonObject()
-      .put("id", "${ApiTestSuite.canCirculateLoanType}")
-      .put("name", "Can Circulate")
-  }
-
-  private JsonObject courseReservesLoanType() {
-    new JsonObject()
-      .put("id", "${ApiTestSuite.courseReserveLoanType}")
-      .put("name", "Course Reserves")
   }
 }

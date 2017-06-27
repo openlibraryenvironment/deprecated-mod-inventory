@@ -23,22 +23,19 @@ class ItemRepresentation {
 
     def itemRepresentation = toJson(item, context)
 
+    representation.put("item", itemRepresentation)
+
     if(materialType != null) {
-      itemRepresentation.getJsonObject("materialType")
-        .put("name", materialType.getString("name"))
+      representation.put("materialType", materialType)
     }
 
     if(permanentLoanType != null) {
-      itemRepresentation.getJsonObject("permanentLoanType")
-        .put("name", permanentLoanType.getString("name"))
+      representation.put("permanentLoanType", permanentLoanType)
     }
 
     if(temporaryLoanType != null) {
-      itemRepresentation.getJsonObject("temporaryLoanType")
-        .put("name", temporaryLoanType.getString("name"))
+      representation.put("temporaryLoanType", temporaryLoanType)
     }
-
-    representation.put("item", itemRepresentation)
 
     representation
   }
@@ -56,13 +53,13 @@ class ItemRepresentation {
     includeIfPresent(representation, "instanceId", item.instanceId)
     includeIfPresent(representation, "barcode", item.barcode)
 
-    includeReferenceIfPresent(representation, "materialType",
+    includeIfPresent(representation, "materialTypeId",
       item.materialTypeId)
 
-    includeReferenceIfPresent(representation, "permanentLoanType",
+    includeIfPresent(representation, "permanentLoanTypeId",
       item.permanentLoanTypeId)
 
-    includeReferenceIfPresent(representation, "temporaryLoanType",
+    includeIfPresent(representation, "temporaryLoanTypeId",
       item.temporaryLoanTypeId)
 
     if(item.location != null) {
@@ -119,17 +116,6 @@ class ItemRepresentation {
       .put("totalRecords", wrappedItems.totalRecords)
 
     representation
-  }
-
-  private void includeReferenceIfPresent(
-    JsonObject representation,
-    String referencePropertyName,
-    String id) {
-
-    if (id != null) {
-      representation.put(referencePropertyName,
-        new JsonObject().put("id", id))
-    }
   }
 
   private void includeIfPresent(

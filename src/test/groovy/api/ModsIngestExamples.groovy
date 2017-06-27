@@ -100,9 +100,9 @@ class ModsIngestExamples extends Specification {
     assert items.every({ it.getJsonObject("item").containsKey("barcode") })
     assert items.every({ it.getJsonObject("item").containsKey("instanceId") })
     assert items.every({ it.getJsonObject("item").getJsonObject("status").getString("name") == "Available" })
-    assert items.every({ it.getJsonObject("item").getJsonObject("materialType").getString("id") == ApiTestSuite.bookMaterialType })
-    assert items.every({ it.getJsonObject("item").getJsonObject("materialType").getString("name") == "Book" })
     assert items.every({ it.getJsonObject("item").getJsonObject("location").getString("name") == "Main Library" })
+    assert items.every({ it.getJsonObject("item").getString("materialTypeId") == ApiTestSuite.bookMaterialType })
+    assert items.every({ it.getJsonObject("item").getString("permanentLoanTypeId") == ApiTestSuite.canCirculateLoanType })
 
     assert items.any({
       itemSimilarTo(it.getJsonObject("item"),
