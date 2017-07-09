@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 import static api.support.InstanceSamples.*
+import static api.support.UrlUtility.toAbsolute
 
 class ItemApiExamples extends Specification {
   private final OkapiHttpClient okapiClient = ApiTestSuite.createOkapiHttpClient()
@@ -51,7 +52,8 @@ class ItemApiExamples extends Specification {
 
       def getCompleted = new CompletableFuture<Response>()
 
-      okapiClient.get(postResponse.location, ResponseHandler.json(getCompleted))
+      okapiClient.get(toAbsolute(postResponse.location, ApiRoot.items()),
+        ResponseHandler.json(getCompleted))
 
       Response getResponse = getCompleted.get(5, TimeUnit.SECONDS);
 
@@ -105,7 +107,8 @@ class ItemApiExamples extends Specification {
 
       def getCompleted = new CompletableFuture<Response>()
 
-      okapiClient.get(postResponse.location, ResponseHandler.json(getCompleted))
+      okapiClient.get(toAbsolute(postResponse.location, ApiRoot.items()),
+        ResponseHandler.json(getCompleted))
 
       Response getResponse = getCompleted.get(5, TimeUnit.SECONDS);
 
@@ -140,7 +143,8 @@ class ItemApiExamples extends Specification {
 
       def getCompleted = new CompletableFuture<Response>()
 
-      okapiClient.get(postResponse.location, ResponseHandler.json(getCompleted))
+      okapiClient.get(toAbsolute(postResponse.location, ApiRoot.items()),
+        ResponseHandler.json(getCompleted))
 
       Response getResponse = getCompleted.get(5, TimeUnit.SECONDS);
 
@@ -185,7 +189,8 @@ class ItemApiExamples extends Specification {
 
       def getCompleted = new CompletableFuture<Response>()
 
-      okapiClient.get(postResponse.location, ResponseHandler.json(getCompleted))
+      okapiClient.get(toAbsolute(postResponse.location, ApiRoot.items()),
+        ResponseHandler.json(getCompleted))
 
       Response getResponse = getCompleted.get(5, TimeUnit.SECONDS);
 
@@ -224,7 +229,8 @@ class ItemApiExamples extends Specification {
 
       def getCompleted = new CompletableFuture<Response>()
 
-      okapiClient.get(postResponse.location, ResponseHandler.json(getCompleted))
+      okapiClient.get(toAbsolute(postResponse.location, ApiRoot.items()),
+        ResponseHandler.json(getCompleted))
 
       Response getResponse = getCompleted.get(5, TimeUnit.SECONDS);
 
@@ -301,7 +307,8 @@ class ItemApiExamples extends Specification {
 
       def getCompleted = new CompletableFuture<Response>()
 
-      okapiClient.get(postResponse.location, ResponseHandler.json(getCompleted))
+      okapiClient.get(toAbsolute(postResponse.location, ApiRoot.items()),
+        ResponseHandler.json(getCompleted))
 
       Response getResponse = getCompleted.get(5, TimeUnit.SECONDS);
 
@@ -345,6 +352,7 @@ class ItemApiExamples extends Specification {
         .put("instanceId", nodInstance.id)
         .put("barcode", "645398607547")
         .put("status", new JsonObject().put("name", "Available"))
+        .put("permanentLoanTypeId", ApiTestSuite.canCirculateLoanType)
         .put("materialTypeId", ApiTestSuite.bookMaterialType)
         .put("location", new JsonObject().put("name", "Main Library"))
 
@@ -353,7 +361,7 @@ class ItemApiExamples extends Specification {
 
     then:
       assert postResponse.statusCode == 400
-      assert postResponse.body == "Barcodes must be unique, 645398607547 is already assigned to another item"
+      assert  postResponse.body == "Barcodes must be unique, 645398607547 is already assigned to another item"
   }
 
   void "Can update an existing item"() {
@@ -495,7 +503,7 @@ class ItemApiExamples extends Specification {
 
       Response getAllResponse = getAllCompleted.get(5, TimeUnit.SECONDS);
 
-      assert getAllResponse.json.getJsonArray("items").size() == 0
+      assert getAllResponse.json.getJsonArray("compositeItems").size() == 0
       assert getAllResponse.json.getInteger("totalRecords") == 0
   }
 
@@ -542,7 +550,7 @@ class ItemApiExamples extends Specification {
 
       Response getAllResponse = getAllCompleted.get(5, TimeUnit.SECONDS);
 
-      assert getAllResponse.json.getJsonArray("items").size() == 2
+      assert getAllResponse.json.getJsonArray("compositeItems").size() == 2
       assert getAllResponse.json.getInteger("totalRecords") == 2
   }
 
@@ -588,12 +596,12 @@ class ItemApiExamples extends Specification {
       assert firstPageResponse.statusCode == 200
       assert secondPageResponse.statusCode == 200
 
-      def firstPageWrappedItems = JsonArrayHelper.toList(firstPageResponse.json.getJsonArray("items"))
+      def firstPageWrappedItems = JsonArrayHelper.toList(firstPageResponse.json.getJsonArray("compositeItems"))
 
       assert firstPageWrappedItems.size() == 3
       assert firstPageResponse.json.getInteger("totalRecords") == 5
 
-      def secondPageWrappedItems = JsonArrayHelper.toList(secondPageResponse.json.getJsonArray("items"))
+      def secondPageWrappedItems = JsonArrayHelper.toList(secondPageResponse.json.getJsonArray("compositeItems"))
 
       assert secondPageWrappedItems.size() == 2
       assert secondPageResponse.json.getInteger("totalRecords") == 5
@@ -662,7 +670,7 @@ class ItemApiExamples extends Specification {
     then:
       assert getAllResponse.statusCode == 200
 
-      def wrappedItems = JsonArrayHelper.toList(getAllResponse.json.getJsonArray("items"))
+      def wrappedItems = JsonArrayHelper.toList(getAllResponse.json.getJsonArray("compositeItems"))
 
       assert wrappedItems.size() == 2
       assert getAllResponse.json.getInteger("totalRecords") == 2
@@ -696,14 +704,15 @@ class ItemApiExamples extends Specification {
     when:
       def getPagedCompleted = new CompletableFuture<Response>()
 
+      //Cannot use strict content-type due to RMB-34
       okapiClient.get(ApiRoot.items("limit=&offset="),
-        ResponseHandler.text(getPagedCompleted))
+        ResponseHandler.any(getPagedCompleted))
 
       Response getPagedResponse = getPagedCompleted.get(5, TimeUnit.SECONDS)
 
     then:
       assert getPagedResponse.statusCode == 400
-      assert getPagedResponse.body == "limit and offset must be numeric when supplied"
+      assert getPagedResponse.body == "offset does not have a default value in the RAML and has been passed empty"
   }
 
   void "Can search for items by title"() {
@@ -727,7 +736,7 @@ class ItemApiExamples extends Specification {
     then:
       assert searchGetResponse.statusCode == 200
 
-      def wrappedItems = JsonArrayHelper.toList(searchGetResponse.json.getJsonArray("items"))
+      def wrappedItems = JsonArrayHelper.toList(searchGetResponse.json.getJsonArray("compositeItems"))
 
       assert wrappedItems.size() == 1
       assert searchGetResponse.json.getInteger("totalRecords") == 1

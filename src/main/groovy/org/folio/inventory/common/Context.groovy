@@ -7,6 +7,6 @@ interface Context {
 
   String getOkapiLocation()
   def getHeader(String header)
-  def getHeader(String header, defaultValue)
+  def getHeader(String header, String defaultValue)
   boolean hasHeader(String header)
 }

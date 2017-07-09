@@ -5,7 +5,7 @@ import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
-import org.folio.inventory.common.WebContext
+import org.folio.inventory.common.WebRoutingContext
 import org.folio.inventory.common.api.request.PagingParameters
 import org.folio.inventory.common.api.request.VertxBodyParser
 import org.folio.inventory.common.api.response.*
@@ -49,7 +49,7 @@ class Instances {
   }
 
   void getAll(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     def search = context.getStringParameter("query", null)
 
@@ -79,13 +79,13 @@ class Instances {
   }
 
   void create(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     Map instanceRequest = new VertxBodyParser().toMap(routingContext)
 
     if(isEmpty(instanceRequest.title)) {
-      ClientErrorResponse.badRequest(routingContext.response(),
-        "Title must be provided for an instance")
+      JsonResponse.unprocessable(routingContext.response(),
+        "title", instanceRequest.title, "may not be null")
       return
     }
 
@@ -100,7 +100,7 @@ class Instances {
   }
 
   void update(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     Map instanceRequest = new VertxBodyParser().toMap(routingContext)
 
@@ -122,7 +122,7 @@ class Instances {
   }
 
   void deleteAll(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     storage.getInstanceCollection(context).empty (
       { SuccessResponse.noContent(routingContext.response()) },
@@ -130,7 +130,7 @@ class Instances {
   }
 
   void deleteById(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     storage.getInstanceCollection(context).delete(
       routingContext.request().getParam("id"),
@@ -139,7 +139,7 @@ class Instances {
   }
 
   void getById(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     storage.getInstanceCollection(context).findById(
       routingContext.request().getParam("id"),
@@ -158,7 +158,7 @@ class Instances {
     "/inventory/instances"
   }
 
-  private JsonObject toRepresentation(Map wrappedInstances, WebContext context) {
+  private JsonObject toRepresentation(Map wrappedInstances, WebRoutingContext context) {
     def representation = new JsonObject()
 
     def results = new JsonArray()
@@ -174,7 +174,7 @@ class Instances {
     representation
   }
 
-  private JsonObject toRepresentation(Instance instance, WebContext context) {
+  private JsonObject toRepresentation(Instance instance, WebRoutingContext context) {
     def representation = new JsonObject()
 
     representation.put("@context", context.absoluteUrl(

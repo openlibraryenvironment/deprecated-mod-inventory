@@ -3,7 +3,8 @@ package org.folio.inventory.resources
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
-import org.folio.inventory.common.WebContext
+import org.codehaus.plexus.util.StringUtils
+import org.folio.inventory.common.WebRoutingContext
 import org.folio.inventory.common.api.request.PagingParameters
 import org.folio.inventory.common.api.request.VertxBodyParser
 import org.folio.inventory.common.api.response.*
@@ -41,18 +42,23 @@ class Items {
   }
 
   void getAll(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     def search = context.getStringParameter("query", null)
 
-    def pagingParameters = PagingParameters.from(context)
-
-    if(pagingParameters == null) {
+    if(routingContext.request().params().contains("offset") && StringUtils.isEmpty(routingContext.request().getParam("offset"))) {
       ClientErrorResponse.badRequest(routingContext.response(),
-        "limit and offset must be numeric when supplied")
-
+        "offset does not have a default value in the RAML and has been passed empty")
       return
     }
+
+    if(routingContext.request().params().contains("limit") && StringUtils.isEmpty(routingContext.request().getParam("limit"))) {
+      ClientErrorResponse.badRequest(routingContext.response(),
+        "limit does not have a default value in the RAML and has been passed empty")
+      return
+    }
+
+    def pagingParameters = PagingParameters.from(context)
 
     if(search == null) {
       storage.getItemCollection(context).findAll(
@@ -70,7 +76,7 @@ class Items {
   }
 
   void deleteAll(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     storage.getItemCollection(context).empty(
       { SuccessResponse.noContent(routingContext.response()) },
@@ -78,7 +84,7 @@ class Items {
   }
 
   void create(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     Map itemRequest = new VertxBodyParser().toMap(routingContext)
 
@@ -113,7 +119,7 @@ class Items {
   }
 
   void update(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     Map itemRequest = new VertxBodyParser().toMap(routingContext)
 
@@ -153,7 +159,7 @@ class Items {
   }
 
   void deleteById(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     storage.getItemCollection(context).delete(
       routingContext.request().getParam("id"),
@@ -162,7 +168,7 @@ class Items {
   }
 
   void getById(RoutingContext routingContext) {
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     def materialTypesClient = createMaterialTypesClient(routingContext, context)
     def loanTypesClient = createLoanTypesClient(routingContext, context)
@@ -229,7 +235,7 @@ class Items {
 
   private CollectionResourceClient createMaterialTypesClient(
     RoutingContext routingContext,
-    WebContext context) {
+    WebRoutingContext context) {
 
     def client = new OkapiHttpClient(routingContext.vertx().createHttpClient(),
       new URL(context.okapiLocation), context.tenantId,
@@ -245,7 +251,7 @@ class Items {
 
   private CollectionResourceClient createLoanTypesClient(
     RoutingContext routingContext,
-    WebContext context) {
+    WebRoutingContext context) {
 
     def client = new OkapiHttpClient(routingContext.vertx().createHttpClient(),
       new URL(context.okapiLocation), context.tenantId,
@@ -273,7 +279,7 @@ class Items {
 
   private respondWithManyItems(
     RoutingContext routingContext,
-    WebContext context,
+    WebRoutingContext context,
     Map wrappedItems) {
 
     def materialTypesClient = createMaterialTypesClient(routingContext, context)

@@ -2,8 +2,7 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "properties": {
-    "items": {
-      "id": "items",
+    "compositeItems": {
       "type": "array",
       "items": {
         "type": "object",
@@ -16,7 +15,7 @@
   },
   "additionalProperties": false,
   "required": [
-    "items",
+    "compositeItems",
     "totalRecords"
   ]
 }

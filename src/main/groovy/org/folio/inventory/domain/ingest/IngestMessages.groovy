@@ -6,7 +6,7 @@ import org.folio.inventory.common.messaging.JsonMessage
 import org.folio.inventory.domain.Messages
 
 class IngestMessages {
-  static JsonMessage start(records, Map materialTypes, Map loanTypes, jobId, Context context) {
+  static JsonMessage start(records, Map materialTypes, Map loanTypes, String jobId, Context context) {
     new JsonMessage(Messages.START_INGEST.Address,
     headers(jobId, context),
     new JsonObject()
@@ -21,7 +21,7 @@ class IngestMessages {
       new JsonObject())
   }
 
-  private static Map<String, String> headers(jobId, Context context) {
+  private static Map<String, String> headers(String jobId, Context context) {
     ["jobId"        : jobId,
      "tenantId"     : context.tenantId,
      "token"     : context.token,

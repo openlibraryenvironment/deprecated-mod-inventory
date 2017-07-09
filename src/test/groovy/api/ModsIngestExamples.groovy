@@ -13,6 +13,7 @@ import spock.util.concurrent.PollingConditions
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
+import static api.support.UrlUtility.toAbsolute
 import static io.restassured.RestAssured.given
 
 class ModsIngestExamples extends Specification {
@@ -46,7 +47,7 @@ class ModsIngestExamples extends Specification {
         timeout: 10, initialDelay: 1.0, factor: 1.25)
 
       conditions.eventually {
-        ingestJobHasCompleted(statusLocation)
+        ingestJobHasCompleted(toAbsolute(statusLocation, ApiRoot.inventory()))
         expectedInstancesCreatedFromIngest()
         expectedItemsCreatedFromIngest()
       }
@@ -92,7 +93,7 @@ class ModsIngestExamples extends Specification {
 
     Response getAllResponse = getAllCompleted.get(5, TimeUnit.SECONDS)
 
-    def items = JsonArrayHelper.toList(getAllResponse.json.getJsonArray("items"))
+    def items = JsonArrayHelper.toList(getAllResponse.json.getJsonArray("compositeItems"))
 
     assert items.size() == 8
     assert items.every({ it.getJsonObject("item").containsKey("id") })

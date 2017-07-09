@@ -2,10 +2,10 @@ package org.folio.inventory.common
 
 import io.vertx.ext.web.RoutingContext
 
-class WebContext implements Context {
+class WebRoutingContext implements Context {
   private final RoutingContext routingContext
 
-  WebContext(RoutingContext routingContext) {
+  WebRoutingContext(RoutingContext routingContext) {
     this.routingContext = routingContext
   }
 
@@ -30,7 +30,7 @@ class WebContext implements Context {
   }
 
   @Override
-  def getHeader(String header, defaultValue) {
+  def getHeader(String header, String defaultValue) {
     hasHeader(header) ? getHeader(header) : defaultValue
   }
 

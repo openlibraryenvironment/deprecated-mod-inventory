@@ -10,7 +10,7 @@ documentation:
 
 schemas:
  - compositeItem.json: !include schema/compositeItem.json
- - compositeItems.json: !include schema/compositeItems.json
+ - compositeItems: !include schema/compositeItems.json
  - item.json: !include schema/item.json
  - materialType.json: !include schema/materialType.json
  - loanType.json: !include schema/loanType.json
@@ -35,7 +35,7 @@ resourceTypes:
     type:
       collection:
         exampleCollection: !include examples/composite_items_get.json
-        schemaCollection: compositeItems.json
+        schemaCollection: compositeItems
         schemaItem: compositeItem.json
         exampleItem: !include examples/composite_item_get.json
     get:
@@ -81,7 +81,9 @@ resourceTypes:
         schemaItem: instance.json
         exampleItem: !include examples/instance_get.json
     get:
-      is: [pageable]
+      is: [pageable,
+          searchable: {description: "by title (using CQL)",
+                       example: "title=\"*uproot*\""}]
       responses:
         501:
           description: "Not implemented yet"

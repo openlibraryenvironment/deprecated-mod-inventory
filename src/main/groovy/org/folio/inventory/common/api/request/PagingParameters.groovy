@@ -1,7 +1,7 @@
 package org.folio.inventory.common.api.request
 
 import org.apache.commons.lang3.StringUtils
-import org.folio.inventory.common.WebContext
+import org.folio.inventory.common.WebRoutingContext
 
 class PagingParameters {
 
@@ -17,7 +17,7 @@ class PagingParameters {
     new PagingParameters(10, 0)
   }
 
-  static PagingParameters from(WebContext context) {
+  static PagingParameters from(WebRoutingContext context) {
 
     def limit = context.getStringParameter("limit", "10")
     def offset = context.getStringParameter("offset", "0")

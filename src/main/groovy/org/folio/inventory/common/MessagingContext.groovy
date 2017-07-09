@@ -31,7 +31,7 @@ class MessagingContext implements Context {
   }
 
   @Override
-  def getHeader(String header, Object defaultValue) {
+  def getHeader(String header, String defaultValue) {
     hasHeader(header) ? getHeader(header) : defaultValue
   }
 

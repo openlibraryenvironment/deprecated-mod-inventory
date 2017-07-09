@@ -8,6 +8,8 @@ import org.folio.inventory.support.http.client.ResponseHandler
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
+import static api.support.UrlUtility.toAbsolute
+
 class ItemApiClient {
   static def createItem(OkapiHttpClient client, JsonObject newItemRequest) {
     def postCompleted = new CompletableFuture<Response>()
@@ -21,7 +23,8 @@ class ItemApiClient {
 
     def getCompleted = new CompletableFuture<Response>()
 
-    client.get(postResponse.location, ResponseHandler.json(getCompleted))
+    client.get(toAbsolute(postResponse.location, ApiRoot.items()),
+      ResponseHandler.json(getCompleted))
 
     Response getResponse = getCompleted.get(5, TimeUnit.SECONDS);
 

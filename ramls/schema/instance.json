@@ -2,9 +2,6 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "properties": {
-    "@context": {
-      "type": "string"
-    },
     "id": {
       "type": "string"
     },
@@ -13,7 +10,7 @@
     },
     "identifiers": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "items": {
         "type": "object",
         "properties": {
@@ -24,24 +21,15 @@
             "type": "string"
           }
         },
+        "additionalProperties": false,
         "required": [
           "namespace",
           "value"
         ]
       }
-    },
-    "links": {
-      "type": "object",
-      "properties": {
-        "self": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "self"
-      ]
     }
   },
+  "additionalProperties": false,
   "required": [
     "title"
   ]

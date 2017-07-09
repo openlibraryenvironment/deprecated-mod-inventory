@@ -3,7 +3,7 @@ package org.folio.inventory.resources.ingest
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
-import org.folio.inventory.common.WebContext
+import org.folio.inventory.common.WebRoutingContext
 import org.folio.inventory.common.api.response.*
 import org.folio.inventory.common.domain.Success
 import org.folio.inventory.domain.ingest.IngestMessages
@@ -38,7 +38,7 @@ class ModsIngestion {
     }
 
     //TODO: Will only work for book material type and can circulate loan type
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     def client = new OkapiHttpClient(routingContext.vertx().createHttpClient(),
       new URL(context.okapiLocation), context.tenantId,
@@ -128,7 +128,7 @@ class ModsIngestion {
 
   private status(RoutingContext routingContext) {
 
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     storage.getIngestJobCollection(context)
       .findById(routingContext.request().getParam("id"),

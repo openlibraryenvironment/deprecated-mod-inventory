@@ -4,7 +4,7 @@ import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 
 class IngestRecordConverter {
-  def toJson(records) {
+  Collection<JsonObject> toJson(records) {
     records.collect {
       def convertedIdentifiers = it.identifiers.collect {
         ["namespace": "${it.namespace}", "value": "${it.value}"]

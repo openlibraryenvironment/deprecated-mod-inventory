@@ -9,7 +9,7 @@ import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
-import org.folio.inventory.common.WebContext
+import org.folio.inventory.common.WebRoutingContext
 import org.folio.inventory.common.WebRequestDiagnostics
 import org.folio.inventory.common.api.response.ClientErrorResponse
 import org.folio.inventory.common.api.response.JsonResponse
@@ -170,7 +170,7 @@ class FakeInventoryStorageModule extends AbstractVerticle {
   private def getItems(RoutingContext routingContext) {
     def itemsForTenant = getItemsForTenant(getTenantId(routingContext))
 
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     def limit = context.getIntegerParameter("limit", 10)
     def offset = context.getIntegerParameter("offset", 0)
@@ -277,7 +277,7 @@ class FakeInventoryStorageModule extends AbstractVerticle {
     def instancesForTenant = getInstancesForTenant(
       getTenantId(routingContext))
 
-    def context = new WebContext(routingContext)
+    def context = new WebRoutingContext(routingContext)
 
     def limit = context.getIntegerParameter("limit", 10)
     def offset = context.getIntegerParameter("offset", 0)
@@ -352,7 +352,7 @@ class FakeInventoryStorageModule extends AbstractVerticle {
   private static void checkTenantHeader(RoutingContext routingContext,
                                         Collection<String> expectedTenants) {
 
-    def tenantId = new WebContext(routingContext).tenantId
+    def tenantId = new WebRoutingContext(routingContext).tenantId
 
     switch (tenantId) {
       case expectedTenants:
@@ -372,7 +372,7 @@ class FakeInventoryStorageModule extends AbstractVerticle {
   }
 
   private String getTenantId(RoutingContext routingContext) {
-    new WebContext(routingContext).tenantId
+    new WebRoutingContext(routingContext).tenantId
   }
 
   private Map<String, JsonObject> getItemsForTenant(String tenantId) {
@@ -408,7 +408,7 @@ class FakeInventoryStorageModule extends AbstractVerticle {
   private static void checkAcceptHeader(RoutingContext routingContext,
                                         String acceptableType) {
 
-    def accepts = new WebContext(routingContext).getHeader("Accept")
+    def accepts = new WebRoutingContext(routingContext).getHeader("Accept")
 
     switch (accepts) {
       case {it.contains(acceptableType)}:
@@ -429,7 +429,7 @@ class FakeInventoryStorageModule extends AbstractVerticle {
 
   private static void checkContentTypeHeader(RoutingContext routingContext) {
 
-    def accepts = new WebContext(routingContext).getHeader("Content-Type")
+    def accepts = new WebRoutingContext(routingContext).getHeader("Content-Type")
 
     switch (accepts) {
       case "application/json":
@@ -447,7 +447,7 @@ class FakeInventoryStorageModule extends AbstractVerticle {
 
   private static void checkTokenHeader(RoutingContext routingContext) {
 
-    def tokenId = new WebContext(routingContext).token
+    def tokenId = new WebRoutingContext(routingContext).token
 
     if(tokenId != null && tokenId.trim().length() > 0) {
       routingContext.next()

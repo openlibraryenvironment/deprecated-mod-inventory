@@ -2,7 +2,7 @@ package org.folio.inventory.resources
 
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import org.folio.inventory.common.WebContext
+import org.folio.inventory.common.WebRoutingContext
 import org.folio.inventory.domain.Item
 
 class ItemRepresentation {
@@ -82,14 +82,14 @@ class ItemRepresentation {
     }
 
     representation
-      .put("items", results)
+      .put("compositeItems", results)
       .put("totalRecords", wrappedItems.totalRecords)
 
     representation
   }
 
   JsonObject toJson(Map wrappedItems,
-                    WebContext context) {
+                    WebRoutingContext context) {
 
     def representation = new JsonObject()
 

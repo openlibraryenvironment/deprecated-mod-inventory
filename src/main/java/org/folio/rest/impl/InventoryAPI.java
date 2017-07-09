@@ -4,21 +4,39 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+import org.folio.inventory.common.RamlModuleBuilderContext;
+import org.folio.inventory.domain.ingest.IngestMessages;
+import org.folio.inventory.parsing.ModsParser;
+import org.folio.inventory.parsing.UTF8LiteralCharacterEncoding;
+import org.folio.inventory.resources.ingest.IngestRecordConverter;
 import org.folio.inventory.support.CollectionResourceClient;
+import org.folio.inventory.support.JsonArrayHelper;
 import org.folio.inventory.support.http.client.OkapiHttpClient;
-import org.folio.rest.jaxrs.model.Instance;
-import org.folio.rest.jaxrs.model.Item;
+import org.folio.rest.jaxrs.model.*;
 import org.folio.rest.jaxrs.resource.InventoryResource;
+import org.folio.rest.tools.utils.OutStream;
 
 import javax.mail.internet.MimeMultipart;
 import javax.ws.rs.core.Response;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Map;
+import java.net.URLEncoder;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class InventoryAPI implements InventoryResource {
 
   private final String OKAPI_URL = "X-Okapi-Url";
+  private final String INSTANCE_STORAGE_PATH = "/instance-storage/instances";
+  private final String ITEM_STORAGE_PATH = "/item-storage/items";
+  private final String MATERIAL_TYPE_PATH = "/material-types";
+  private final String LOAN_TYPE_PATH = "/loan-types";
 
   @Override
   public void deleteInventoryItems(
@@ -27,11 +45,10 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    CollectionResourceClient itemsClient;
     OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
 
-    itemsClient = new CollectionResourceClient(client,
-      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), "/item-storage/items"));
+    CollectionResourceClient itemsClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), ITEM_STORAGE_PATH));
 
     itemsClient.delete(response ->{
       asyncResultHandler.handle(Future.succeededFuture(
@@ -49,18 +66,235 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    URL itemStorageUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), ITEM_STORAGE_PATH);
+    URL materialTypesUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), MATERIAL_TYPE_PATH);
+    URL loanTypesUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), LOAN_TYPE_PATH);
+
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    CollectionResourceClient itemsClient = new CollectionResourceClient(client, itemStorageUrl);
+
+    String fullQuery = String.format("limit=%s&offset=%s", limit, offset);
+
+    if(StringUtils.isNotBlank(query)) {
+      fullQuery = fullQuery + "&query=" + URLEncoder.encode(query, "UTF-8");
+    }
+
+    itemsClient.getMany(fullQuery, response -> {
+      if (response.getStatusCode() == 200) {
+
+        JsonObject body = response.getJson();
+
+        List<CompositeItem> items = JsonArrayHelper.toList(body.getJsonArray("items"))
+          .stream()
+          .map(it -> new CompositeItem().withItem(mapToItem(it)))
+          .collect(Collectors.toList());
+
+        CollectionResourceClient materialTypesClient = new CollectionResourceClient(client, materialTypesUrl);
+        CollectionResourceClient loanTypesClient = new CollectionResourceClient(client, loanTypesUrl);
+
+        ArrayList<CompletableFuture<org.folio.inventory.support.http.client.Response>> allMaterialTypeFutures = new ArrayList<>();
+        ArrayList<CompletableFuture<org.folio.inventory.support.http.client.Response>> allLoanTypeFutures = new ArrayList<>();
+        ArrayList<CompletableFuture<org.folio.inventory.support.http.client.Response>> allFutures = new ArrayList<>();
+
+        List<String> materialTypeIds = items.stream()
+          .map(it -> it.getItem().getMaterialTypeId())
+          .filter(it -> it != null)
+          .distinct()
+          .collect(Collectors.toList());
+
+          materialTypeIds.stream().forEach(id -> {
+            CompletableFuture<org.folio.inventory.support.http.client.Response> newFuture = new CompletableFuture<>();
+
+            allFutures.add(newFuture);
+            allMaterialTypeFutures.add(newFuture);
+
+            materialTypesClient.get(id, newFuture::complete);
+          });
+
+          Stream.concat(
+            items.stream().map(it -> it.getItem().getPermanentLoanTypeId()),
+            items.stream().map(it -> it.getItem().getTemporaryLoanTypeId()))
+          .filter(it -> it != null)
+          .distinct()
+          .forEach(id -> {
+          CompletableFuture<org.folio.inventory.support.http.client.Response> newFuture = new CompletableFuture<>();
+
+          allFutures.add(newFuture);
+          allLoanTypeFutures.add(newFuture);
+
+          loanTypesClient.get(id, newFuture::complete);
+        });
+
+        CompletableFuture<Void> allDoneFuture = CompletableFuture.allOf(
+          allFutures.toArray(new CompletableFuture[allFutures.size()]));
+
+        allDoneFuture.thenAccept(v -> {
+          Map<String, JsonObject> foundMaterialTypes = allMaterialTypeFutures.stream()
+            .map(CompletableFuture::join)
+            .filter(it -> it.getStatusCode() == 200)
+            .map(it -> it.getJson())
+            .collect(Collectors.toMap(it -> it.getString("id"), it -> it));
+
+          Map<String, JsonObject> foundLoanTypes = allLoanTypeFutures.stream()
+            .map(CompletableFuture::join)
+            .filter(it -> it.getStatusCode() == 200)
+            .map(it -> it.getJson())
+            .collect(Collectors.toMap(it -> it.getString("id"), it -> it));
+
+          items.stream().forEach(item -> {
+            JsonObject foundMaterialType = foundMaterialTypes.getOrDefault(
+              item.getItem().getMaterialTypeId(), null);
+
+            if(foundMaterialType != null) {
+              item.setMaterialType(new MaterialType()
+                .withId(foundMaterialType.getString("id"))
+                .withName(foundMaterialType.getString("name")));
+            }
+
+            JsonObject foundPermanentLoanType = foundLoanTypes.getOrDefault(
+              item.getItem().getPermanentLoanTypeId(), null);
+
+            if(foundPermanentLoanType != null) {
+              item.setPermanentLoanType(new PermanentLoanType()
+                .withId(foundPermanentLoanType.getString("id"))
+                .withName(foundPermanentLoanType.getString("name")));
+            }
+
+            JsonObject foundTemporaryLoanType = foundLoanTypes.getOrDefault(
+              item.getItem().getTemporaryLoanTypeId(), null);
+
+            if(foundTemporaryLoanType != null) {
+              item.setTemporaryLoanType(new PermanentLoanType()
+                .withId(foundTemporaryLoanType.getString("id"))
+                .withName(foundTemporaryLoanType.getString("name")));
+            }
+          });
+
+          CompositeItems wrappedItems = new CompositeItems()
+            .withCompositeItems(items)
+            .withTotalRecords(body.getInteger("totalRecords"));
+
+          asyncResultHandler.handle(Future.succeededFuture(
+            GetInventoryItemsResponse.withJsonOK(wrappedItems)));
+        });
+      } else {
+        asyncResultHandler.handle(Future.succeededFuture(
+          convertResponseToJax(response)));
+      }
+    });
   }
 
   @Override
   public void postInventoryItems(
     String lang,
-    Item entity,
+    CompositeItem entity,
     Map<String, String> okapiHeaders,
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    URL itemStorageUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), ITEM_STORAGE_PATH);
+    URL materialTypesUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), MATERIAL_TYPE_PATH);
+    URL loanTypesUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), LOAN_TYPE_PATH);
+
+    CollectionResourceClient itemsClient = new CollectionResourceClient(client,
+      itemStorageUrl);
+
+    Item item = entity.getItem();
+
+    //TODO: Barcode check
+    //    "barcode=${newItem.barcode}"
+
+    if(StringUtils.isEmpty(item.getId())) {
+      item.setId(UUID.randomUUID().toString());
+    }
+
+    JsonObject storageItemRequest = mapToStorageRequest(entity);
+
+    itemsClient.post(storageItemRequest, response -> {
+      if (response.getStatusCode() == 201) {
+        Item mappedItem = mapToItem(response.getJson());
+
+        CollectionResourceClient materialTypesClient = new CollectionResourceClient(client, materialTypesUrl);
+        CollectionResourceClient loanTypesClient = new CollectionResourceClient(client, loanTypesUrl);
+
+        CompletableFuture<org.folio.inventory.support.http.client.Response> materialTypeFuture = new CompletableFuture<>();
+        CompletableFuture<org.folio.inventory.support.http.client.Response> permanentLoanTypeFuture = new CompletableFuture<>();
+        CompletableFuture<org.folio.inventory.support.http.client.Response> temporaryLoanTypeFuture = new CompletableFuture<>();
+        ArrayList<CompletableFuture<org.folio.inventory.support.http.client.Response>> allFutures = new ArrayList<>();
+
+        if (mappedItem.getMaterialTypeId() != null) {
+          allFutures.add(materialTypeFuture);
+
+          materialTypesClient.get(mappedItem.getMaterialTypeId(),
+            response1 -> materialTypeFuture.complete(response1));
+        }
+
+        if (mappedItem.getPermanentLoanTypeId() != null) {
+          allFutures.add(permanentLoanTypeFuture);
+
+          loanTypesClient.get(mappedItem.getPermanentLoanTypeId(),
+            response2 -> permanentLoanTypeFuture.complete(response2));
+        }
+
+        if (mappedItem.getTemporaryLoanTypeId() != null) {
+          allFutures.add(temporaryLoanTypeFuture);
+
+          loanTypesClient.get(mappedItem.getTemporaryLoanTypeId(),
+            response3 -> temporaryLoanTypeFuture.complete(response3));
+        }
+
+        CompletableFuture<Void> allDoneFuture = CompletableFuture.allOf(allFutures.toArray(new CompletableFuture[allFutures.size()]));
+
+        allDoneFuture.thenAccept(v -> {
+          JsonObject foundMaterialType = mappedItem.getMaterialTypeId() != null && materialTypeFuture.join().getStatusCode() == 200
+            ? materialTypeFuture.join().getJson()
+            : null;
+
+          JsonObject foundPermanentLoanType = mappedItem.getPermanentLoanTypeId() != null &&
+            permanentLoanTypeFuture.join().getStatusCode() == 200 ?
+            permanentLoanTypeFuture.join().getJson() : null;
+
+          JsonObject foundTemporaryLoanType = mappedItem.getTemporaryLoanTypeId() != null &&
+            temporaryLoanTypeFuture.join().getStatusCode() == 200 ?
+            temporaryLoanTypeFuture.join().getJson() : null;
+
+          CompositeItem compositeItem = new CompositeItem().withItem(mappedItem);
+
+          if(foundMaterialType != null) {
+            compositeItem.setMaterialType(
+              new MaterialType().withId(foundMaterialType.getString("id"))
+                .withName(foundMaterialType.getString("name")) );
+          }
+
+          if(foundPermanentLoanType != null) {
+            compositeItem.setPermanentLoanType(
+              new PermanentLoanType().withId(foundPermanentLoanType.getString("id"))
+                .withName(foundPermanentLoanType.getString("name")) );
+          }
+
+          if(foundTemporaryLoanType != null) {
+            compositeItem.setTemporaryLoanType(
+              new PermanentLoanType().withId(foundTemporaryLoanType.getString("id"))
+                .withName(foundTemporaryLoanType.getString("name")) );
+          }
+
+          OutStream stream = new OutStream();
+          stream.setData(compositeItem);
+
+          asyncResultHandler.handle(Future.succeededFuture(
+            PostInventoryInstancesResponse.withJsonCreated(
+              "/inventory/items/" + mappedItem.getId().toString(),
+              stream)));
+
+        });
+      } else {
+        asyncResultHandler.handle(Future.succeededFuture(
+          convertResponseToJax(response)));
+      }
+    });
   }
 
   @Override
@@ -71,7 +305,95 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    URL itemStorageUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), ITEM_STORAGE_PATH);
+    URL materialTypesUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), MATERIAL_TYPE_PATH);
+    URL loanTypesUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), LOAN_TYPE_PATH);
+
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    CollectionResourceClient itemsClient = new CollectionResourceClient(client,
+      itemStorageUrl);
+
+    itemsClient.get(itemId, response -> {
+      if(response.getStatusCode() == 200) {
+        Item mappedItem = mapToItem(response.getJson());
+
+        CollectionResourceClient materialTypesClient = new CollectionResourceClient(client, materialTypesUrl);
+        CollectionResourceClient loanTypesClient = new CollectionResourceClient(client, loanTypesUrl);
+
+        CompletableFuture<org.folio.inventory.support.http.client.Response> materialTypeFuture = new CompletableFuture<>();
+        CompletableFuture<org.folio.inventory.support.http.client.Response> permanentLoanTypeFuture = new CompletableFuture<>();
+        CompletableFuture<org.folio.inventory.support.http.client.Response> temporaryLoanTypeFuture = new CompletableFuture<>();
+        ArrayList<CompletableFuture<org.folio.inventory.support.http.client.Response>> allFutures = new ArrayList<>();
+
+        if (mappedItem.getMaterialTypeId() != null) {
+          allFutures.add(materialTypeFuture);
+
+          materialTypesClient.get(mappedItem.getMaterialTypeId(),
+            response1 -> materialTypeFuture.complete(response1));
+        }
+
+        if (mappedItem.getPermanentLoanTypeId() != null) {
+          allFutures.add(permanentLoanTypeFuture);
+
+          loanTypesClient.get(mappedItem.getPermanentLoanTypeId(),
+            response2 -> permanentLoanTypeFuture.complete(response2));
+        }
+
+        if (mappedItem.getTemporaryLoanTypeId() != null) {
+          allFutures.add(temporaryLoanTypeFuture);
+
+          loanTypesClient.get(mappedItem.getTemporaryLoanTypeId(),
+            response3 -> temporaryLoanTypeFuture.complete(response3));
+        }
+
+        CompletableFuture<Void> allDoneFuture = CompletableFuture.allOf(
+          allFutures.toArray(new CompletableFuture[allFutures.size()]));
+
+        allDoneFuture.thenAccept(v -> {
+          JsonObject foundMaterialType = mappedItem.getMaterialTypeId() != null && materialTypeFuture.join().getStatusCode() == 200
+            ? materialTypeFuture.join().getJson()
+            : null;
+
+          JsonObject foundPermanentLoanType = mappedItem.getPermanentLoanTypeId() != null &&
+            permanentLoanTypeFuture.join().getStatusCode() == 200 ?
+            permanentLoanTypeFuture.join().getJson() : null;
+
+          JsonObject foundTemporaryLoanType = mappedItem.getTemporaryLoanTypeId() != null &&
+            temporaryLoanTypeFuture.join().getStatusCode() == 200 ?
+            temporaryLoanTypeFuture.join().getJson() : null;
+
+          CompositeItem compositeItem = new CompositeItem().withItem(mappedItem);
+
+          compositeItem.setItem(mappedItem);
+
+          if (foundMaterialType != null) {
+            compositeItem.setMaterialType(
+              new MaterialType().withId(foundMaterialType.getString("id"))
+                .withName(foundMaterialType.getString("name")));
+          }
+
+          if (foundPermanentLoanType != null) {
+            compositeItem.setPermanentLoanType(
+              new PermanentLoanType().withId(foundPermanentLoanType.getString("id"))
+                .withName(foundPermanentLoanType.getString("name")));
+          }
+
+          if (foundTemporaryLoanType != null) {
+            compositeItem.setTemporaryLoanType(
+              new PermanentLoanType().withId(foundTemporaryLoanType.getString("id"))
+                .withName(foundTemporaryLoanType.getString("name")));
+          }
+
+          asyncResultHandler.handle(Future.succeededFuture(
+            GetInventoryItemsByItemIdResponse.withJsonOK(compositeItem)));
+        });
+      }
+      else {
+        asyncResultHandler.handle(Future.succeededFuture(
+          convertResponseToJax(response)));
+      }
+    });
   }
 
   @Override
@@ -82,18 +404,50 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    CollectionResourceClient itemStorageClient;
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    itemStorageClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), ITEM_STORAGE_PATH));
+
+    itemStorageClient.delete(itemId, response ->{
+      asyncResultHandler.handle(Future.succeededFuture(
+        convertResponseToJax(response)));
+    });
   }
 
   @Override
   public void putInventoryItemsByItemId(
     String itemId,
     String lang,
-    Item entity, Map<String, String> okapiHeaders,
+    CompositeItem entity,
+    Map<String, String> okapiHeaders,
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    CollectionResourceClient itemStorageClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), ITEM_STORAGE_PATH));
+
+    JsonObject storageInstanceRequest = mapToStorageRequest(entity);
+
+    itemStorageClient.put(itemId, storageInstanceRequest, response -> {
+      if(response.getStatusCode() == 204) {
+        Instance mappedInstance = mapToInstance(response.getJson());
+
+        OutStream stream = new OutStream();
+        stream.setData(mappedInstance);
+
+        asyncResultHandler.handle(Future.succeededFuture(
+          PutInventoryInstancesByInstanceIdResponse.withNoContent()));
+      }
+      else {
+        asyncResultHandler.handle(Future.succeededFuture(
+          convertResponseToJax(response)));
+
+      }
+    });
   }
 
   @Override
@@ -107,7 +461,7 @@ public class InventoryAPI implements InventoryResource {
     OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
 
     instancesStorageClient = new CollectionResourceClient(client,
-      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), "/instance-storage/instances"));
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), INSTANCE_STORAGE_PATH));
 
     instancesStorageClient.delete(response ->{
       asyncResultHandler.handle(Future.succeededFuture(
@@ -119,11 +473,37 @@ public class InventoryAPI implements InventoryResource {
   public void getInventoryInstances(
     int offset,
     int limit,
+    String query,
     String lang, Map<String, String> okapiHeaders,
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    CollectionResourceClient instancesClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), INSTANCE_STORAGE_PATH));
+
+    String fullQuery = String.format("limit=%s&offset=%s", limit, offset);
+
+    if(StringUtils.isNotBlank(query)) {
+      fullQuery = fullQuery + "&query=" + URLEncoder.encode(query, "UTF-8");
+    }
+
+    instancesClient.getMany(fullQuery, response -> {
+      JsonObject body = response.getJson();
+
+      List<Instance> instances = JsonArrayHelper.toList(body.getJsonArray("instances"))
+        .stream()
+        .map(it -> mapToInstance(it))
+        .collect(Collectors.toList());
+
+      Instances wrappedInstances = new Instances()
+        .withInstances(instances)
+        .withTotalRecords(body.getInteger("totalRecords"));
+
+      asyncResultHandler.handle(Future.succeededFuture(
+        GetInventoryInstancesResponse.withJsonOK(wrappedInstances)));
+    });
   }
 
   @Override
@@ -134,7 +514,29 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    CollectionResourceClient instancesClient;
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    instancesClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), INSTANCE_STORAGE_PATH));
+
+    if(StringUtils.isEmpty(entity.getId())) {
+      entity.setId(UUID.randomUUID().toString());
+    }
+
+    JsonObject storageInstanceRequest = mapToStorageRequest(entity);
+
+    instancesClient.post(storageInstanceRequest, response -> {
+      Instance mappedInstance = mapToInstance(response.getJson());
+
+      OutStream stream = new OutStream();
+      stream.setData(mappedInstance);
+
+      asyncResultHandler.handle(Future.succeededFuture(
+        PostInventoryInstancesResponse.withJsonCreated(
+          "/inventory/instances/" + mappedInstance.getId().toString(),
+          stream )));
+    });
   }
 
   @Override
@@ -145,7 +547,24 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    CollectionResourceClient instancesClient;
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    instancesClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), INSTANCE_STORAGE_PATH));
+
+    instancesClient.get(instanceId, response -> {
+      if(response.getStatusCode() == 200) {
+        Instance mappedInstance = mapToInstance(response.getJson());
+
+        asyncResultHandler.handle(Future.succeededFuture(
+          GetInventoryInstancesByInstanceIdResponse.withJsonOK(mappedInstance)));
+      }
+      else {
+        asyncResultHandler.handle(Future.succeededFuture(
+          convertResponseToJax(response)));
+      }
+    });
   }
 
   @Override
@@ -156,7 +575,16 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    CollectionResourceClient instancesStorageClient;
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    instancesStorageClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), INSTANCE_STORAGE_PATH));
+
+    instancesStorageClient.delete(instanceId, response ->{
+      asyncResultHandler.handle(Future.succeededFuture(
+        convertResponseToJax(response)));
+    });
   }
 
   @Override
@@ -167,7 +595,28 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    CollectionResourceClient instancesClient = new CollectionResourceClient(client,
+      okapiBasedUrl(okapiHeaders.get(OKAPI_URL), INSTANCE_STORAGE_PATH));
+
+    if(StringUtils.isEmpty(entity.getId())) {
+      entity.setId(UUID.randomUUID().toString());
+    }
+
+    JsonObject storageInstanceRequest = mapToStorageRequest(entity);
+
+    instancesClient.put(instanceId, storageInstanceRequest, response -> {
+      if(response.getStatusCode() == 204) {
+        asyncResultHandler.handle(Future.succeededFuture(
+          PutInventoryInstancesByInstanceIdResponse.withNoContent()));
+      }
+      else {
+        asyncResultHandler.handle(Future.succeededFuture(
+          convertResponseToJax(response)));
+
+      }
+    });
   }
 
   @Override
@@ -186,7 +635,68 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    if(entity.getCount() > 1) {
+
+    }
+
+    String uploadedFileContents = IOUtils.toString(entity.getBodyPart(0).getInputStream());
+
+    ModsParser parser = new ModsParser(new UTF8LiteralCharacterEncoding());
+
+    Collection<JsonObject> convertedRecords = new IngestRecordConverter().toJson(
+      parser.parseRecords(uploadedFileContents));
+
+    URL materialTypesUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), MATERIAL_TYPE_PATH);
+    URL loanTypesUrl = okapiBasedUrl(okapiHeaders.get(OKAPI_URL), LOAN_TYPE_PATH);
+
+    OkapiHttpClient client = createHttpClient(vertxContext, okapiHeaders);
+
+    CollectionResourceClient materialTypesClient = new CollectionResourceClient(client, materialTypesUrl);
+    CollectionResourceClient loanTypesClient = new CollectionResourceClient(client, loanTypesUrl);
+
+    CompletableFuture<org.folio.inventory.support.http.client.Response> materialTypesRequestCompleted = new CompletableFuture<>();
+    CompletableFuture<org.folio.inventory.support.http.client.Response> loanTypesRequestCompleted = new CompletableFuture<>();
+
+    materialTypesClient.getMany(
+      "query=" + URLEncoder.encode("name=\"Book\"", "UTF-8"),
+      materialTypesRequestCompleted::complete);
+
+    loanTypesClient.getMany(
+      "query=" + URLEncoder.encode("name=\"Can Circulate\"", "UTF-8"),
+      loanTypesRequestCompleted::complete);
+
+    CompletableFuture.allOf(materialTypesRequestCompleted, loanTypesRequestCompleted)
+      .thenAccept(v -> {
+        org.folio.inventory.support.http.client.Response materialTypeResponse = materialTypesRequestCompleted.getNow(null);
+        org.folio.inventory.support.http.client.Response loanTypeResponse = loanTypesRequestCompleted.getNow(null);
+
+        if (materialTypeResponse.getStatusCode() != 200) {
+          asyncResultHandler.handle(Future.succeededFuture(
+            PostInventoryIngestModsResponse.withPlainInternalServerError("Unable to retrieve material types")));
+        }
+
+        if (loanTypeResponse.getStatusCode() != 200) {
+          asyncResultHandler.handle(Future.succeededFuture(
+            PostInventoryIngestModsResponse.withPlainInternalServerError("Unable to retrieve loan types")));
+        }
+
+        Map<String, String> materialTypes =
+          JsonArrayHelper.toList(materialTypeResponse.getJson().getJsonArray("mtypes"))
+            .stream()
+            .collect(Collectors.toMap(it -> it.getString("name"), it -> it.getString("id")));
+
+        Map<String, String> loanTypes =
+          JsonArrayHelper.toList(loanTypeResponse.getJson().getJsonArray("loantypes"))
+            .stream()
+            .collect(Collectors.toMap(it -> it.getString("name"), it -> it.getString("id")));
+
+        IngestMessages.start(convertedRecords, materialTypes, loanTypes, UUID.randomUUID().toString(),
+          new RamlModuleBuilderContext(okapiHeaders)).send(vertxContext.owner());
+
+        asyncResultHandler.handle(Future.succeededFuture(
+          PostInventoryIngestModsResponse.withAccepted(
+            "/inventory/ingest/mods/status/" + UUID.randomUUID().toString())));
+      });
   }
 
   @Override
@@ -195,7 +705,9 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
+    asyncResultHandler.handle(Future.succeededFuture(
+      GetInventoryIngestModsStatusByIdResponse.withJsonOK(
+        new IngestStatus().withStatus(IngestStatus.Status.COMPLETED))));
   }
 
   private OkapiHttpClient createHttpClient(Context context,
@@ -206,7 +718,9 @@ public class InventoryAPI implements InventoryResource {
     return new OkapiHttpClient(context.owner().createHttpClient(),
       new URL(okapiHeaders.get(OKAPI_URL)), okapiHeaders.get("X-Okapi-Tenant"),
       okapiHeaders.get("X-Okapi-Token"),
-      exception -> {  });
+      exception -> {
+        System.out.println(exception);
+    });
   }
 
   private URL okapiBasedUrl(String okapiUrl, String path)
@@ -216,5 +730,118 @@ public class InventoryAPI implements InventoryResource {
 
     return new URL(currentRequestUrl.getProtocol(), currentRequestUrl.getHost(),
       currentRequestUrl.getPort(), path);
+  }
+
+  private Item mapToItem(JsonObject storageItem) {
+    Item item = new Item();
+
+    item.setId(storageItem.getString("id"));
+    item.setTitle(storageItem.getString("title"));
+    item.setBarcode(storageItem.getString("barcode"));
+    item.setMaterialTypeId(storageItem.getString("materialTypeId"));
+    item.setPermanentLoanTypeId(storageItem.getString("permanentLoanTypeId"));
+
+    if(storageItem.containsKey("temporaryLoanTypeId")) {
+      item.setTemporaryLoanTypeId(storageItem.getString("temporaryLoanTypeId"));
+    }
+
+    if(storageItem.containsKey("instanceId")) {
+      item.setInstanceId(storageItem.getString("instanceId"));
+    }
+
+    if(storageItem.containsKey("status")) {
+      item.setStatus(new Status().withName(storageItem.getJsonObject("status").getString("name")));
+    }
+
+    if(storageItem.containsKey("location")) {
+      item.setLocation(new Location().withName(storageItem.getJsonObject("location").getString("name")));
+    }
+
+    return item;
+  }
+
+  private Instance mapToInstance(JsonObject storageInstance) {
+    Instance mappedInstance = new Instance();
+
+    mappedInstance.setId(storageInstance.getString("id"));
+    mappedInstance.setTitle(storageInstance.getString("title"));
+
+    if(storageInstance.containsKey("identifiers")) {
+      mappedInstance.setIdentifiers(
+        JsonArrayHelper.toList(storageInstance.getJsonArray("identifiers"))
+          .stream()
+          .map(it -> {
+            Identifier identifier = new Identifier();
+            identifier.setNamespace(it.getString("namespace"));
+            identifier.setValue(it.getString("value"));
+            return identifier;
+          })
+          .collect(Collectors.toList()));
+    }
+
+    return mappedInstance;
+  }
+
+  private JsonObject mapToStorageRequest(Instance entity) {
+    JsonObject storageInstanceRequest = new JsonObject()
+      .put("id", entity.getId())
+      .put("title", entity.getTitle());
+
+    if(entity.getIdentifiers() != null && entity.getIdentifiers().size() != 0) {
+      JsonArray identifiers = new JsonArray(
+        entity.getIdentifiers().stream()
+          .map(it -> new JsonObject()
+            .put("namespace", it.getNamespace())
+            .put("value", it.getValue()))
+          .collect(Collectors.toList()));
+
+      storageInstanceRequest.put("identifiers", identifiers);
+    }
+    return storageInstanceRequest;
+  }
+
+  private JsonObject mapToStorageRequest(CompositeItem entity) {
+    Item item = entity.getItem();
+
+    if(StringUtils.isEmpty(item.getId())) {
+      item.setId(UUID.randomUUID().toString());
+    }
+
+    JsonObject storageItemRequest = new JsonObject();
+
+    storageItemRequest.put("id", item.getId());
+    storageItemRequest.put("title", item.getTitle());
+    storageItemRequest.put("materialTypeId", item.getMaterialTypeId());
+    storageItemRequest.put("permanentLoanTypeId", item.getPermanentLoanTypeId());
+
+    if(item.getInstanceId() != null) {
+      storageItemRequest.put("instanceId", item.getInstanceId());
+    }
+
+    if(item.getBarcode() != null) {
+      storageItemRequest.put("barcode", item.getBarcode());
+    }
+
+    if(item.getBarcode() != null) {
+      storageItemRequest.put("temporaryLoanTypeId", item.getTemporaryLoanTypeId());
+    }
+
+    if(item.getStatus() != null) {
+      storageItemRequest.put("status", new JsonObject().put("name", item.getStatus().getName()));
+    }
+
+    if(item.getLocation() != null) {
+      storageItemRequest.put("location", new JsonObject().put("name", item.getLocation().getName()));
+    }
+
+    return storageItemRequest;
+  }
+
+  private Response convertResponseToJax(org.folio.inventory.support.http.client.Response storageResponse) {
+    return Response
+      .status(storageResponse.getStatusCode())
+      .header("Content-Type", storageResponse.getContentType())
+      .entity(storageResponse.getBody())
+      .build();
   }
 }
