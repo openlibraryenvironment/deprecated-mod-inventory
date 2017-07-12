@@ -12,7 +12,9 @@ import org.folio.inventory.common.RamlModuleBuilderContext;
 import org.folio.inventory.domain.ingest.IngestMessages;
 import org.folio.inventory.parsing.ModsParser;
 import org.folio.inventory.parsing.UTF8LiteralCharacterEncoding;
+import org.folio.inventory.resources.ingest.IngestJob;
 import org.folio.inventory.resources.ingest.IngestRecordConverter;
+import org.folio.inventory.storage.memory.InMemoryIngestJobCollection;
 import org.folio.inventory.support.CollectionResourceClient;
 import org.folio.inventory.support.JsonArrayHelper;
 import org.folio.inventory.support.http.client.OkapiHttpClient;
@@ -636,7 +638,9 @@ public class InventoryAPI implements InventoryResource {
     Context vertxContext) throws Exception {
 
     if(entity.getCount() > 1) {
-
+      asyncResultHandler.handle(Future.succeededFuture(
+        PostInventoryIngestModsResponse.withPlainBadRequest("Cannot parse multiple files in a single request")));
+      return;
     }
 
     String uploadedFileContents = IOUtils.toString(entity.getBodyPart(0).getInputStream());
@@ -690,12 +694,14 @@ public class InventoryAPI implements InventoryResource {
             .stream()
             .collect(Collectors.toMap(it -> it.getString("name"), it -> it.getString("id")));
 
-        IngestMessages.start(convertedRecords, materialTypes, loanTypes, UUID.randomUUID().toString(),
+        String jobId = UUID.randomUUID().toString();
+
+        IngestMessages.start(convertedRecords, materialTypes, loanTypes, jobId,
           new RamlModuleBuilderContext(okapiHeaders)).send(vertxContext.owner());
 
         asyncResultHandler.handle(Future.succeededFuture(
           PostInventoryIngestModsResponse.withAccepted(
-            "/inventory/ingest/mods/status/" + UUID.randomUUID().toString())));
+            "/inventory/ingest/mods/status/" + jobId)));
       });
   }
 
@@ -705,9 +711,37 @@ public class InventoryAPI implements InventoryResource {
     Handler<AsyncResult<Response>> asyncResultHandler,
     Context vertxContext) throws Exception {
 
-    asyncResultHandler.handle(Future.succeededFuture(
-      GetInventoryIngestModsStatusByIdResponse.withJsonOK(
-        new IngestStatus().withStatus(IngestStatus.Status.COMPLETED))));
+    InMemoryIngestJobCollection.getInstance().findById(id,
+      success -> {
+        IngestJob job = success.getResult();
+
+        IngestStatus.Status status = null;
+
+        switch(job.getState()) {
+
+          case COMPLETED:
+            status = IngestStatus.Status.COMPLETED;
+            break;
+          case IN_PROGRESS:
+            status = IngestStatus.Status.IN_PROGRESS;
+            break;
+          case REQUESTED:
+            status = IngestStatus.Status.REQUESTED;
+            break;
+          default:
+            status = IngestStatus.Status.REQUESTED;
+            break;
+        }
+
+        asyncResultHandler.handle(Future.succeededFuture(
+          GetInventoryIngestModsStatusByIdResponse.withJsonOK(
+            new IngestStatus().withStatus(status))));
+      },
+      failure -> {
+        asyncResultHandler.handle(Future.succeededFuture(
+          GetInventoryIngestModsStatusByIdResponse.withPlainInternalServerError(
+            failure.getReason())));
+      });
   }
 
   private OkapiHttpClient createHttpClient(Context context,
