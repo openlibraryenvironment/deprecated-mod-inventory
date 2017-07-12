@@ -52,7 +52,7 @@ public class InventoryAPI implements InventoryResource {
     CollectionResourceClient itemsClient = new CollectionResourceClient(client,
       okapiBasedUrl(okapiHeaders.get(OKAPI_URL), ITEM_STORAGE_PATH));
 
-    itemsClient.delete(response ->{
+    itemsClient.delete(response -> {
       asyncResultHandler.handle(Future.succeededFuture(
         DeleteInventoryItemsResponse.withNoContent()));
     });
@@ -206,99 +206,39 @@ public class InventoryAPI implements InventoryResource {
 
     Item item = entity.getItem();
 
-    //TODO: Barcode check
-    //    "barcode=${newItem.barcode}"
-
     if(StringUtils.isEmpty(item.getId())) {
       item.setId(UUID.randomUUID().toString());
     }
 
-    JsonObject storageItemRequest = mapToStorageRequest(entity);
+    if(StringUtils.isNotEmpty(item.getBarcode())) {
+      String encodedBarcodeCql = "query=" + URLEncoder.encode(
+        String.format("barcode=%s", item.getBarcode()), "UTF-8");
 
-    itemsClient.post(storageItemRequest, response -> {
-      if (response.getStatusCode() == 201) {
-        Item mappedItem = mapToItem(response.getJson());
-
-        CollectionResourceClient materialTypesClient = new CollectionResourceClient(client, materialTypesUrl);
-        CollectionResourceClient loanTypesClient = new CollectionResourceClient(client, loanTypesUrl);
-
-        CompletableFuture<org.folio.inventory.support.http.client.Response> materialTypeFuture = new CompletableFuture<>();
-        CompletableFuture<org.folio.inventory.support.http.client.Response> permanentLoanTypeFuture = new CompletableFuture<>();
-        CompletableFuture<org.folio.inventory.support.http.client.Response> temporaryLoanTypeFuture = new CompletableFuture<>();
-        ArrayList<CompletableFuture<org.folio.inventory.support.http.client.Response>> allFutures = new ArrayList<>();
-
-        if (mappedItem.getMaterialTypeId() != null) {
-          allFutures.add(materialTypeFuture);
-
-          materialTypesClient.get(mappedItem.getMaterialTypeId(),
-            response1 -> materialTypeFuture.complete(response1));
-        }
-
-        if (mappedItem.getPermanentLoanTypeId() != null) {
-          allFutures.add(permanentLoanTypeFuture);
-
-          loanTypesClient.get(mappedItem.getPermanentLoanTypeId(),
-            response2 -> permanentLoanTypeFuture.complete(response2));
-        }
-
-        if (mappedItem.getTemporaryLoanTypeId() != null) {
-          allFutures.add(temporaryLoanTypeFuture);
-
-          loanTypesClient.get(mappedItem.getTemporaryLoanTypeId(),
-            response3 -> temporaryLoanTypeFuture.complete(response3));
-        }
-
-        CompletableFuture<Void> allDoneFuture = CompletableFuture.allOf(allFutures.toArray(new CompletableFuture[allFutures.size()]));
-
-        allDoneFuture.thenAccept(v -> {
-          JsonObject foundMaterialType = mappedItem.getMaterialTypeId() != null && materialTypeFuture.join().getStatusCode() == 200
-            ? materialTypeFuture.join().getJson()
-            : null;
-
-          JsonObject foundPermanentLoanType = mappedItem.getPermanentLoanTypeId() != null &&
-            permanentLoanTypeFuture.join().getStatusCode() == 200 ?
-            permanentLoanTypeFuture.join().getJson() : null;
-
-          JsonObject foundTemporaryLoanType = mappedItem.getTemporaryLoanTypeId() != null &&
-            temporaryLoanTypeFuture.join().getStatusCode() == 200 ?
-            temporaryLoanTypeFuture.join().getJson() : null;
-
-          CompositeItem compositeItem = new CompositeItem().withItem(mappedItem);
-
-          if(foundMaterialType != null) {
-            compositeItem.setMaterialType(
-              new MaterialType().withId(foundMaterialType.getString("id"))
-                .withName(foundMaterialType.getString("name")) );
+      itemsClient.getMany(encodedBarcodeCql, barcodeResponse -> {
+        if(barcodeResponse.getStatusCode() == 200) {
+          if(barcodeResponse.getJson().getInteger("totalRecords") > 0) {
+            asyncResultHandler.handle(Future.succeededFuture(
+              PostInventoryItemsResponse.withPlainBadRequest(
+                String.format("Barcode must be unique, %s is already assigned to another item", item.getBarcode()))));
           }
+          else {
+            JsonObject storageItemRequest = mapToStorageRequest(entity);
 
-          if(foundPermanentLoanType != null) {
-            compositeItem.setPermanentLoanType(
-              new PermanentLoanType().withId(foundPermanentLoanType.getString("id"))
-                .withName(foundPermanentLoanType.getString("name")) );
+            createItem(asyncResultHandler, client, materialTypesUrl, loanTypesUrl, itemsClient, storageItemRequest);
           }
-
-          if(foundTemporaryLoanType != null) {
-            compositeItem.setTemporaryLoanType(
-              new PermanentLoanType().withId(foundTemporaryLoanType.getString("id"))
-                .withName(foundTemporaryLoanType.getString("name")) );
-          }
-
-          OutStream stream = new OutStream();
-          stream.setData(compositeItem);
-
+        }
+        else {
           asyncResultHandler.handle(Future.succeededFuture(
-            PostInventoryInstancesResponse.withJsonCreated(
-              "/inventory/items/" + mappedItem.getId().toString(),
-              stream)));
+            PostInventoryItemsResponse.withPlainInternalServerError(
+              "Error checking duplicate barcode " + barcodeResponse.getBody())));
+        }
+      });
+    } else {
+      JsonObject storageItemRequest = mapToStorageRequest(entity);
 
-        });
-      } else {
-        asyncResultHandler.handle(Future.succeededFuture(
-          convertResponseToJax(response)));
-      }
-    });
+      createItem(asyncResultHandler, client, materialTypesUrl, loanTypesUrl, itemsClient, storageItemRequest);
+    }
   }
-
   @Override
   public void getInventoryItemsByItemId(
     String itemId,
@@ -432,8 +372,39 @@ public class InventoryAPI implements InventoryResource {
     CollectionResourceClient itemStorageClient = new CollectionResourceClient(client,
       okapiBasedUrl(okapiHeaders.get(OKAPI_URL), ITEM_STORAGE_PATH));
 
-    JsonObject storageInstanceRequest = mapToStorageRequest(entity);
+    Item item = entity.getItem();
 
+    if(StringUtils.isNotEmpty(item.getBarcode())) {
+      String encodedBarcodeCql = "query=" + URLEncoder.encode(
+        String.format("barcode=%s and id<>%s", item.getBarcode(), item.getId()), "UTF-8");
+
+      itemStorageClient.getMany(encodedBarcodeCql, barcodeResponse -> {
+        if(barcodeResponse.getStatusCode() == 200) {
+          if(barcodeResponse.getJson().getInteger("totalRecords") > 0) {
+            asyncResultHandler.handle(Future.succeededFuture(
+              PostInventoryItemsResponse.withPlainBadRequest(
+                String.format("Barcode must be unique, %s is already assigned to another item", item.getBarcode()))));
+          }
+          else {
+            JsonObject storageInstanceRequest = mapToStorageRequest(entity);
+
+            updateItem(itemId, asyncResultHandler, itemStorageClient, storageInstanceRequest);
+          }
+        }
+        else {
+          asyncResultHandler.handle(Future.succeededFuture(
+            PostInventoryItemsResponse.withPlainInternalServerError(
+              "Error checking duplicate barcode " + barcodeResponse.getBody())));
+        }
+      });
+    } else {
+      JsonObject storageInstanceRequest = mapToStorageRequest(entity);
+
+      updateItem(itemId, asyncResultHandler, itemStorageClient, storageInstanceRequest);
+    }
+  }
+
+  private void updateItem(String itemId, Handler<AsyncResult<Response>> asyncResultHandler, CollectionResourceClient itemStorageClient, JsonObject storageInstanceRequest) {
     itemStorageClient.put(itemId, storageInstanceRequest, response -> {
       if(response.getStatusCode() == 204) {
         Instance mappedInstance = mapToInstance(response.getJson());
@@ -877,5 +848,90 @@ public class InventoryAPI implements InventoryResource {
       .header("Content-Type", storageResponse.getContentType())
       .entity(storageResponse.getBody())
       .build();
+  }
+
+  private void createItem(Handler<AsyncResult<Response>> asyncResultHandler, OkapiHttpClient client, URL materialTypesUrl, URL loanTypesUrl, CollectionResourceClient itemsClient, JsonObject storageItemRequest) {
+    itemsClient.post(storageItemRequest, response -> {
+      if (response.getStatusCode() == 201) {
+        Item mappedItem = mapToItem(response.getJson());
+
+        CollectionResourceClient materialTypesClient = new CollectionResourceClient(client, materialTypesUrl);
+        CollectionResourceClient loanTypesClient = new CollectionResourceClient(client, loanTypesUrl);
+
+        CompletableFuture<org.folio.inventory.support.http.client.Response> materialTypeFuture = new CompletableFuture<>();
+        CompletableFuture<org.folio.inventory.support.http.client.Response> permanentLoanTypeFuture = new CompletableFuture<>();
+        CompletableFuture<org.folio.inventory.support.http.client.Response> temporaryLoanTypeFuture = new CompletableFuture<>();
+        ArrayList<CompletableFuture<org.folio.inventory.support.http.client.Response>> allFutures = new ArrayList<>();
+
+        if (mappedItem.getMaterialTypeId() != null) {
+          allFutures.add(materialTypeFuture);
+
+          materialTypesClient.get(mappedItem.getMaterialTypeId(),
+            response1 -> materialTypeFuture.complete(response1));
+        }
+
+        if (mappedItem.getPermanentLoanTypeId() != null) {
+          allFutures.add(permanentLoanTypeFuture);
+
+          loanTypesClient.get(mappedItem.getPermanentLoanTypeId(),
+            response2 -> permanentLoanTypeFuture.complete(response2));
+        }
+
+        if (mappedItem.getTemporaryLoanTypeId() != null) {
+          allFutures.add(temporaryLoanTypeFuture);
+
+          loanTypesClient.get(mappedItem.getTemporaryLoanTypeId(),
+            response3 -> temporaryLoanTypeFuture.complete(response3));
+        }
+
+        CompletableFuture<Void> allDoneFuture = CompletableFuture.allOf(allFutures.toArray(new CompletableFuture[allFutures.size()]));
+
+        allDoneFuture.thenAccept(v -> {
+          JsonObject foundMaterialType = mappedItem.getMaterialTypeId() != null && materialTypeFuture.join().getStatusCode() == 200
+            ? materialTypeFuture.join().getJson()
+            : null;
+
+          JsonObject foundPermanentLoanType = mappedItem.getPermanentLoanTypeId() != null &&
+            permanentLoanTypeFuture.join().getStatusCode() == 200 ?
+            permanentLoanTypeFuture.join().getJson() : null;
+
+          JsonObject foundTemporaryLoanType = mappedItem.getTemporaryLoanTypeId() != null &&
+            temporaryLoanTypeFuture.join().getStatusCode() == 200 ?
+            temporaryLoanTypeFuture.join().getJson() : null;
+
+          CompositeItem compositeItem = new CompositeItem().withItem(mappedItem);
+
+          if(foundMaterialType != null) {
+            compositeItem.setMaterialType(
+              new MaterialType().withId(foundMaterialType.getString("id"))
+                .withName(foundMaterialType.getString("name")) );
+          }
+
+          if(foundPermanentLoanType != null) {
+            compositeItem.setPermanentLoanType(
+              new PermanentLoanType().withId(foundPermanentLoanType.getString("id"))
+                .withName(foundPermanentLoanType.getString("name")) );
+          }
+
+          if(foundTemporaryLoanType != null) {
+            compositeItem.setTemporaryLoanType(
+              new PermanentLoanType().withId(foundTemporaryLoanType.getString("id"))
+                .withName(foundTemporaryLoanType.getString("name")) );
+          }
+
+          OutStream stream = new OutStream();
+          stream.setData(compositeItem);
+
+          asyncResultHandler.handle(Future.succeededFuture(
+            PostInventoryInstancesResponse.withJsonCreated(
+              "/inventory/items/" + mappedItem.getId().toString(),
+              stream)));
+
+        });
+      } else {
+        asyncResultHandler.handle(Future.succeededFuture(
+          convertResponseToJax(response)));
+      }
+    });
   }
 }

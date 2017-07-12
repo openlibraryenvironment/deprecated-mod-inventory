@@ -105,7 +105,7 @@ class Items {
         }
         else {
           ClientErrorResponse.badRequest(routingContext.response(),
-            "Barcodes must be unique, ${newItem.barcode} is already assigned to another item")
+            "Barcode must be unique, ${newItem.barcode} is already assigned to another item")
         }
       }, FailureResponseConsumer.serverError(routingContext.response()))
     }
@@ -127,33 +127,18 @@ class Items {
 
     def itemCollection = storage.getItemCollection(context)
 
-    itemCollection.findById(routingContext.request().getParam("id"), {
-      Success it ->
-      if(it.result != null) {
-        if(updatedItem.barcode == null || it.result.barcode == updatedItem.barcode) {
-          itemCollection.update(updatedItem,
-            { SuccessResponse.noContent(routingContext.response()) },
-            { Failure failure -> ServerErrorResponse.internalError(
-              routingContext.response(), failure.reason) })
-        } else {
-          itemCollection.findByCql("barcode=${updatedItem.barcode}",
-            PagingParameters.defaults(), {
+    itemCollection.findByCql("barcode=${updatedItem.barcode} and id<>${updatedItem.id}",
+      PagingParameters.defaults(), {
 
-            if(it.result.items.size() == 1 && it.result.items.first().id == updatedItem.id) {
-              itemCollection.update(updatedItem, {
-                SuccessResponse.noContent(routingContext.response()) },
-                { Failure failure -> ServerErrorResponse.internalError(
-                  routingContext.response(), failure.reason) })
-            }
-            else {
-              ClientErrorResponse.badRequest(routingContext.response(),
-                "Barcodes must be unique, ${updatedItem.barcode} is already assigned to another item")
-            }
-          }, FailureResponseConsumer.serverError(routingContext.response()))
-        }
+      if(it.result.items.size() > 0) {
+        ClientErrorResponse.badRequest(routingContext.response(),
+          "Barcode must be unique, ${updatedItem.barcode} is already assigned to another item")
       }
       else {
-        ClientErrorResponse.notFound(routingContext.response())
+        itemCollection.update(updatedItem, {
+          SuccessResponse.noContent(routingContext.response()) },
+          { Failure failure -> ServerErrorResponse.internalError(
+            routingContext.response(), failure.reason) })
       }
     }, FailureResponseConsumer.serverError(routingContext.response()))
   }

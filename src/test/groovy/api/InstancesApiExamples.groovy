@@ -169,7 +169,7 @@ class InstancesApiExamples extends Specification {
       assert updatedInstance.getJsonArray("identifiers").size() == 1
   }
 
-  void "Cannot update an instance that does not exist"() {
+  void "Can create an instance by putting to a new location"() {
     given:
       def updateInstanceRequest = smallAngryPlanet(UUID.randomUUID())
 
@@ -182,7 +182,7 @@ class InstancesApiExamples extends Specification {
       Response putResponse = putCompleted.get(5, TimeUnit.SECONDS);
 
     then:
-      assert putResponse.statusCode == 404
+      assert putResponse.statusCode == 204
   }
 
   void "Can delete all instances"() {

@@ -361,7 +361,7 @@ class ItemApiExamples extends Specification {
 
     then:
       assert postResponse.statusCode == 400
-      assert  postResponse.body == "Barcodes must be unique, 645398607547 is already assigned to another item"
+      assert  postResponse.body == "Barcode must be unique, 645398607547 is already assigned to another item"
   }
 
   void "Can update an existing item"() {
@@ -416,7 +416,7 @@ class ItemApiExamples extends Specification {
       assert permanentLoanType.getString("name") == "Can Circulate"
   }
 
-  void "Cannot update an item that does not exist"() {
+  void "Can create an item that by putting to a new location"() {
     given:
       def updateItemRequest = new JsonObject()
         .put("id", UUID.randomUUID().toString())
@@ -438,7 +438,7 @@ class ItemApiExamples extends Specification {
       Response putResponse = putCompleted.get(5, TimeUnit.SECONDS)
 
     then:
-      assert putResponse.statusCode == 404
+      assert putResponse.statusCode == 204
   }
 
   void "Cannot update an item to have the same barcode as an existing item"() {
@@ -471,7 +471,7 @@ class ItemApiExamples extends Specification {
 
     then:
       assert putResponse.statusCode == 400
-      assert putResponse.body == "Barcodes must be unique, 645398607547 is already assigned to another item"
+      assert putResponse.body == "Barcode must be unique, 645398607547 is already assigned to another item"
   }
 
   void "Can delete all items"() {
