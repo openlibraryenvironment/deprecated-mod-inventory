@@ -11,6 +11,8 @@ import java.util.function.Consumer
 
 class InMemoryIngestJobCollection implements IngestJobCollection {
 
+  static final InMemoryIngestJobCollection instance = new InMemoryIngestJobCollection()
+
   private final collection = new InMemoryCollection<IngestJob>()
 
   @Override

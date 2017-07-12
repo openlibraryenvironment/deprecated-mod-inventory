@@ -12,7 +12,7 @@ class ExternalStorageCollections implements CollectionProvider {
   private final String baseAddress
 
   private static final InMemoryIngestJobCollection ingestJobCollection =
-    new InMemoryIngestJobCollection()
+    InMemoryIngestJobCollection.instance
 
   def ExternalStorageCollections(Vertx vertx, String baseAddress) {
     this.vertx = vertx

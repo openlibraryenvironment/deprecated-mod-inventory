@@ -25,7 +25,7 @@ class InMemoryCollections implements CollectionProvider {
   @Override
   IngestJobCollection getIngestJobCollection(String tenantId, String token) {
     getCollectionForTenant(tenantId, ingestJobCollections,
-      { new InMemoryIngestJobCollection() })
+      { InMemoryIngestJobCollection.instance })
   }
 
   private <T> T getCollectionForTenant(
