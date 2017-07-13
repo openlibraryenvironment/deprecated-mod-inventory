@@ -2,6 +2,21 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "properties": {
+    "@context": {
+      "type": "object",
+      "properties": {
+        "dcterms": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "dcterms",
+        "title"
+      ]
+    },
     "id": {
       "type": "string"
     },

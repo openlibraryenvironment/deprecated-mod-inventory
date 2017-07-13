@@ -1,5 +1,6 @@
 package org.folio.inventory.resources
 
+import android.R
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
@@ -37,15 +38,8 @@ class Instances {
   }
 
   void getMetadataContext(RoutingContext routingContext) {
-    def representation = [:]
-
-    representation."@context" = [
-      "dcterms": "http://purl.org/dc/terms/",
-      "title"  : "dcterms:title"
-    ]
-
     JsonResponse.success(routingContext.response(),
-        representation)
+        new JsonObject().put("@context", contextRepresentation()))
   }
 
   void getAll(RoutingContext routingContext) {
@@ -108,17 +102,9 @@ class Instances {
 
     def instanceCollection = storage.getInstanceCollection(context)
 
-    instanceCollection.findById(routingContext.request().getParam("id"),
-      { Success it ->
-        if(it.result != null) {
-          instanceCollection.update(updatedInstance, {
-            SuccessResponse.noContent(routingContext.response()) },
-            FailureResponseConsumer.serverError(routingContext.response()))
-        }
-        else {
-          ClientErrorResponse.notFound(routingContext.response())
-        }
-      }, FailureResponseConsumer.serverError(routingContext.response()))
+    instanceCollection.update(updatedInstance, {
+      SuccessResponse.noContent(routingContext.response()) },
+      FailureResponseConsumer.serverError(routingContext.response()))
   }
 
   void deleteAll(RoutingContext routingContext) {
@@ -146,7 +132,7 @@ class Instances {
       { Success it ->
         if(it.result != null) {
           JsonResponse.success(routingContext.response(),
-            toRepresentation(it.result, context))
+            toRepresentation(it.result, context, true))
         }
         else {
           ClientErrorResponse.notFound(routingContext.response())
@@ -164,7 +150,7 @@ class Instances {
     def results = new JsonArray()
 
     wrappedInstances.instances.each {
-      results.add(toRepresentation(it, context))
+      results.add(toRepresentation(it, context, true))
     }
 
     representation
@@ -174,11 +160,20 @@ class Instances {
     representation
   }
 
-  private JsonObject toRepresentation(Instance instance, WebRoutingContext context) {
+  private JsonObject toRepresentation(
+    Instance instance,
+    WebRoutingContext context,
+    boolean includeContextDirectly) {
+
     def representation = new JsonObject()
 
-    representation.put("@context", context.absoluteUrl(
-      relativeInstancesPath() + "/context").toString())
+    if(includeContextDirectly) {
+      representation.put("@context", new JsonObject(contextRepresentation()))
+    }
+    else {
+      representation.put("@context", context.absoluteUrl(
+        relativeInstancesPath() + "/context").toString())
+    }
 
     representation.put("id", instance.id)
     representation.put("title", instance.title)
@@ -201,6 +196,13 @@ class Instances {
         relativeInstancesPath() + "/${instance.id}").toString()])
 
     representation
+  }
+
+  private Map contextRepresentation() {
+    [
+      "dcterms": "http://purl.org/dc/terms/",
+      "title"  : "dcterms:title"
+    ]
   }
 
   private Instance requestToInstance(Map<String, Object> instanceRequest) {

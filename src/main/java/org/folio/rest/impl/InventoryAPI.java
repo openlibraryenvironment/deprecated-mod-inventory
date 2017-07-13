@@ -593,15 +593,6 @@ public class InventoryAPI implements InventoryResource {
   }
 
   @Override
-  public void getInventoryInstancesContext(
-    Map<String, String> okapiHeaders,
-    Handler<AsyncResult<Response>> asyncResultHandler,
-    Context vertxContext) throws Exception {
-
-    asyncResultHandler.handle(Future.succeededFuture(Response.status(501).build()));
-  }
-
-  @Override
   public void postInventoryIngestMods(
     MimeMultipart entity,
     Map<String, String> okapiHeaders,
@@ -783,6 +774,10 @@ public class InventoryAPI implements InventoryResource {
           })
           .collect(Collectors.toList()));
     }
+
+    mappedInstance.setContext(new org.folio.rest.jaxrs.model.Context()
+      .withDcterms("http://purl.org/dc/terms/")
+      .withTitle("dcterms:title"));
 
     return mappedInstance;
   }

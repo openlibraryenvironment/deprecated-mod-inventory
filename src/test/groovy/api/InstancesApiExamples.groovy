@@ -66,8 +66,7 @@ class InstancesApiExamples extends Specification {
       assert createdInstance.getJsonArray("identifiers").getJsonObject(0).getString("namespace") == "isbn"
       assert createdInstance.getJsonArray("identifiers").getJsonObject(0).getString("value") == "9781473619777"
 
-//      expressesDublinCoreMetadata(createdInstance)
-//      dublinCoreContextLinkRespectsWayResourceWasReached(createdInstance)
+      expressesDublinCoreMetadata(createdInstance)
   }
 
   void "Can create an instance with an ID"() {
@@ -106,7 +105,7 @@ class InstancesApiExamples extends Specification {
       assert createdInstance.getString("id") == instanceId
       assert createdInstance.getString("title") == "Long Way to a Small Angry Planet"
 
-//      expressesDublinCoreMetadata(createdInstance)
+      expressesDublinCoreMetadata(createdInstance)
   }
 
   void "Instance title is mandatory"() {
@@ -371,10 +370,10 @@ class InstancesApiExamples extends Specification {
       assert getResponse.statusCode == 404
   }
 
-  private void hasCollectionProperties(instances) {
-//    instances.each {
-//      expressesDublinCoreMetadata(it)
-//    }
+  private void hasCollectionProperties(Iterable<JsonObject> instances) {
+    instances.each {
+      expressesDublinCoreMetadata(it)
+    }
   }
 
   private void expressesDublinCoreMetadata(JsonObject instance) {
