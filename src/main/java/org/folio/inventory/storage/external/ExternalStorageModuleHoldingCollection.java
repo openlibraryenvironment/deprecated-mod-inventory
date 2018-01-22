@@ -1,6 +1,6 @@
 package org.folio.inventory.storage.external;
 
-import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
 import org.folio.inventory.domain.Holding;
 import org.folio.inventory.domain.HoldingCollection;
@@ -11,12 +11,13 @@ class ExternalStorageModuleHoldingCollection
   extends ExternalStorageModuleCollection<Holding>
   implements HoldingCollection {
 
-  ExternalStorageModuleHoldingCollection(Vertx vertx,
-                                         String baseAddress,
-                                         String tenant,
-                                         String token) {
+  ExternalStorageModuleHoldingCollection(
+    HttpClient client,
+    String baseAddress,
+    String tenant,
+    String token) {
 
-    super(vertx, String.format("%s/%s", baseAddress, "holdings-storage/holdings"),
+    super(client, String.format("%s/%s", baseAddress, "holdings-storage/holdings"),
       tenant, token, "holdingsRecords");
   }
 

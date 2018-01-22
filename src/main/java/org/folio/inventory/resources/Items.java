@@ -1,5 +1,6 @@
 package org.folio.inventory.resources;
 
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -39,9 +40,11 @@ public class Items {
   private static final String RELATIVE_ITEMS_PATH = "/inventory/items";
 
   private final Storage storage;
+  private final HttpClient client;
 
-  public Items(final Storage storage) {
+  public Items(final Storage storage, HttpClient client) {
     this.storage = storage;
+    this.client = client;
   }
 
   public void register(Router router) {
@@ -491,7 +494,7 @@ public class Items {
     WebContext context)
     throws MalformedURLException {
 
-    return new OkapiHttpClient(routingContext.vertx().createHttpClient(),
+    return new OkapiHttpClient(client,
       new URL(context.getOkapiLocation()), context.getTenantId(),
       context.getToken(),
       exception -> ServerErrorResponse.internalError(routingContext.response(),

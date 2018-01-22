@@ -1,6 +1,7 @@
 package org.folio.inventory.storage.external;
 
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
 import org.folio.inventory.common.VertxAssistant;
 import org.folio.inventory.support.http.client.OkapiHttpClient;
 import org.junit.AfterClass;
@@ -32,6 +33,8 @@ public class ExternalStorageSuite {
 
   private static String storageModuleDeploymentId;
 
+  private static HttpClient client;
+
   public static <T> T useVertx(Function<Vertx, T> action) {
     return vertxAssistant.createUsingVertx(action);
   }
@@ -48,6 +51,8 @@ public class ExternalStorageSuite {
   public static void beforeAll()
     throws InterruptedException, ExecutionException, TimeoutException {
     vertxAssistant.start();
+
+    client = vertxAssistant.createUsingVertx(Vertx::createHttpClient);
 
     if (useFakeStorageModule()) {
       System.out.println("Starting Fake Storage Module");
@@ -91,4 +96,7 @@ public class ExternalStorageSuite {
           it.toString())));
   }
 
+  public static HttpClient getClient() {
+    return client;
+  }
 }

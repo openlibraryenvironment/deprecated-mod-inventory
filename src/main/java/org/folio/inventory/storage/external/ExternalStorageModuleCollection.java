@@ -1,11 +1,7 @@
 package org.folio.inventory.storage.external;
 
 import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpHeaders;
-import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.*;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import org.apache.commons.lang3.StringUtils;
@@ -23,20 +19,20 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 abstract class ExternalStorageModuleCollection<T> {
-  private final Vertx vertx;
+  private final HttpClient client;
   private final String storageAddress;
   private final String tenant;
   private final String token;
   private final String collectionWrapperPropertyName;
 
   ExternalStorageModuleCollection(
-    Vertx vertx,
+    HttpClient client,
     String storageAddress,
     String tenant,
     String token,
     String collectionWrapperPropertyName) {
 
-    this.vertx = vertx;
+    this.client = client;
     this.storageAddress = storageAddress;
     this.tenant = tenant;
     this.token = token;
@@ -260,8 +256,7 @@ abstract class ExternalStorageModuleCollection<T> {
     Handler<HttpClientResponse> onResponse,
     Consumer<Failure> failureCallback) {
 
-    HttpClientRequest request = vertx.createHttpClient()
-      .requestAbs(method, location, onResponse);
+    HttpClientRequest request = client.requestAbs(method, location, onResponse);
 
     registerExceptionHandler(request, failureCallback);
     addOkapiHeaders(request);

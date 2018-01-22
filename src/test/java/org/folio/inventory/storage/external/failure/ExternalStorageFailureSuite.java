@@ -1,6 +1,7 @@
 package org.folio.inventory.storage.external.failure;
 
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
 import org.folio.inventory.common.VertxAssistant;
 import org.folio.inventory.storage.external.support.FailureInventoryStorageModule;
 import org.junit.AfterClass;
@@ -24,6 +25,7 @@ import java.util.function.Function;
 })
 public class ExternalStorageFailureSuite {
   private static final VertxAssistant vertxAssistant = new VertxAssistant();
+  private static HttpClient client;
   private static String storageModuleDeploymentId;
 
   public static <T> T createUsing(Function<Vertx, T> function) {
@@ -43,6 +45,8 @@ public class ExternalStorageFailureSuite {
     throws InterruptedException, ExecutionException, TimeoutException {
 
     vertxAssistant.start();
+
+    client = vertxAssistant.createUsingVertx(Vertx::createHttpClient);
 
     System.out.println("Starting Failing Storage Module");
 
@@ -67,5 +71,9 @@ public class ExternalStorageFailureSuite {
     undeployed.get(20000, TimeUnit.MILLISECONDS);
 
     vertxAssistant.stop();
+  }
+
+  public static HttpClient getClient() {
+    return client;
   }
 }

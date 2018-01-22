@@ -5,6 +5,7 @@ import api.items.ItemApiLocationExamples;
 import api.items.ItemApiTitleExamples;
 import api.support.ControlledVocabularyPreparation;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
 import org.folio.inventory.InventoryVerticle;
 import org.folio.inventory.common.VertxAssistant;
 import org.folio.inventory.support.http.client.OkapiHttpClient;
@@ -32,7 +33,7 @@ import java.util.concurrent.TimeoutException;
   ModsIngestExamples.class
 })
 public class ApiTestSuite {
-  public static final int INVENTORY_VERTICLE_TEST_PORT = 9603;
+  private static final int INVENTORY_VERTICLE_TEST_PORT = 9603;
   public static final String TENANT_ID = "test_tenant";
 
   public static final String TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbiIsInRlbmFudCI6ImRlbW9fdGVuYW50In0.29VPjLI6fLJzxQW0UhQ0jsvAn8xHz501zyXAxRflXfJ9wuDzT8TDf-V75PjzD7fe2kHjSV2dzRXbstt3BTtXIQ";
@@ -63,6 +64,8 @@ public class ApiTestSuite {
 
   private static boolean initialised;
 
+  private static HttpClient client;
+
   @BeforeClass
   public static void before()
     throws InterruptedException,
@@ -77,6 +80,7 @@ public class ApiTestSuite {
       System.getProperty("use.okapi.storage.requests")));
 
     startVertx();
+    createClient();
     startFakeModules();
     createMaterialTypes();
     createLoanTypes();
@@ -87,6 +91,10 @@ public class ApiTestSuite {
     startInventoryVerticle();
 
     initialised = true;
+  }
+
+  private static void createClient() {
+    client = vertxAssistant.createUsingVertx(Vertx::createHttpClient);
   }
 
   @AfterClass
@@ -148,7 +156,7 @@ public class ApiTestSuite {
     throws MalformedURLException {
 
     return new OkapiHttpClient(
-      vertxAssistant.createUsingVertx(Vertx::createHttpClient),
+      client,
       new URL(storageOkapiUrl()), TENANT_ID, TOKEN, it ->
       System.out.println(
         String.format("Request failed: %s",
