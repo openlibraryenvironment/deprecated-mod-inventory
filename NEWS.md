@@ -1,3 +1,8 @@
+## 8.1.0 Unreleased
+* Make `primary` in `contributors` elements mandatory (MODINV-51)
+* Provides inventory interface version 6.0
+* Requires instance-storage interface version 5.0
+
 ## 7.1.0 2018-04-03
 
 * Use exact match for barcode and ID lookups using CQL (MODINV-43)
