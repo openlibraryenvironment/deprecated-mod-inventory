@@ -551,12 +551,13 @@ public class InstancesApiExamples extends ApiTests {
     assertNotNull(putResponse.getJson().getJsonArray("errors"));
     JsonArray errors = putResponse.getJson().getJsonArray("errors");
     assertThat(errors.size(), is(1));
+
     assertThat(errors.getString(0), is(
       "Instance is controlled by MARC record, these fields are blocked and can not be updated: " +
-        "physicalDescriptions,notes,languages,parentInstances,identifiers,instanceTypeId,subjects," +
-        "catalogedDate,source,title,indexTitle,publicationFrequency,electronicAccess,publicationRange," +
-        "classifications,editions,childInstances,hrid,series,instanceFormatIds,publication,contributors," +
-        "alternativeTitles"));
+        "notes,parentInstances,catalogedDate,source,title,indexTitle,publicationFrequency,"+
+        "electronicAccess,natureOfContentTermIds,hrid,instanceFormatIds,publication,alternativeTitles,"+
+        "physicalDescriptions,languages,identifiers,instanceTypeId,subjects,publicationRange,classifications,"+
+        "editions,childInstances,series,contributors"));
 
     // Get existing Instance
     CompletableFuture<Response> getCompleted = new CompletableFuture<>();

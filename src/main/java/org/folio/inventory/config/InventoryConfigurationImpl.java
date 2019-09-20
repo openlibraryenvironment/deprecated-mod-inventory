@@ -32,12 +32,14 @@ public class InventoryConfigurationImpl implements InventoryConfiguration {
     Instance.CATALOGED_DATE_KEY,
     Instance.TITLE_KEY,
     Instance.INDEX_TITLE_KEY,
-    Instance.INSTANCE_TYPE_ID_KEY
+    Instance.INSTANCE_TYPE_ID_KEY,
+    Instance.NATURE_OF_CONTENT_TERM_IDS_KEY
     );
 
   public InventoryConfigurationImpl() {
   }
 
+  @Override
   public Set<String> getInstanceBlockedFields() {
     return INSTANCE_BLOCKED_FIELDS;
   }
