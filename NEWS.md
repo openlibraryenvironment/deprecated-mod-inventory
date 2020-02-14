@@ -1,3 +1,7 @@
+## 14.0.0-shared-inventory2
+
+ * Adds Item.status.name 'Unknown' to allowed statuses (PR-565)
+
 ## 13.1.0 2019-12-03
 
 * Generates HRIDs for instance and item records (MODINV-160, MODINV-162)
