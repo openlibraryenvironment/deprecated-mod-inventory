@@ -27,10 +27,10 @@ public class InventoryConfigurationImpl implements InventoryConfiguration {
     Instance.ELECTRONIC_ACCESS_KEY,
     Instance.SUBJECTS_KEY,
     Instance.CLASSIFICATIONS_KEY,
-    Instance.CATALOGED_DATE_KEY,
     Instance.TITLE_KEY,
     Instance.INDEX_TITLE_KEY,
-    Instance.INSTANCE_TYPE_ID_KEY
+    Instance.INSTANCE_TYPE_ID_KEY,
+    Instance.MODE_OF_ISSUANCE_ID_KEY
     );
 
   public InventoryConfigurationImpl() {
