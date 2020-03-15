@@ -2,6 +2,28 @@
 
  * Adds Item.status.name 'Unknown' to allowed statuses (PR-565)
 
+## 14.0.0 2020-03-09
+
+* Makes item status required (MODINV-189)
+* Makes item status date read-only (MODINV-189)
+* Allows only one copy number for an item (MODINV-189)
+* Includes `effective call number` for items (MODINV-177)
+* Introduces `Claimed returned` item status (MODINV-194, MODINV-200)
+* Introduces preceding and succeeding titles (MODINV-198)
+* Includes `last check in` for items (MODINV-173, MODINV-190)
+* Disallows editing of mode of issuance when instance has underlying MARC record (MODINV-192)
+* Allows editing of cataloged date when instance has underlying MARC record (MODINV-202)
+* Registers event subscriptions with pub sub (MODINV-181)
+* Provides `inventory 10.2`
+* Provides `inventory-batch 0.5`
+* Provides `_tenant 1.2`
+* Requires `item-storage 8.1`
+* Requires `instance-preceding-succeeding-titles 0.1`
+* Requires `pub-sub-event-types 0.1` (not in ReShare fork)
+* Requires `pubsub-publishers 0.1` (not in ReShare fork)
+* Requires `pubsub-subscribers 0.1` (not in ReShare fork)
+* Requires `pubsub-publish 0.1` (not in ReShare fork)
+
 ## 13.1.0 2019-12-03
 
 * Generates HRIDs for instance and item records (MODINV-160, MODINV-162)
