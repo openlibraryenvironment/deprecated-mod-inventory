@@ -1,6 +1,8 @@
-## 14.0.0-shared-inventory2
+## 14.1.0-shared-inventory2
 
- * Adds Item.status.name 'Unknown' to allowed statuses (PR-565)
+ * Contains upstream fix for MODINV-212 on top of upstream release v14.0.0
+ * shared-inventory: Adds Item.status.name 'Unknown' to allowed statuses (PR-565)
+ * shared-inventory: Does not express pub-sub requirements at this point
 
 ## 14.0.0 2020-03-09
 
@@ -19,10 +21,10 @@
 * Provides `_tenant 1.2`
 * Requires `item-storage 8.1`
 * Requires `instance-preceding-succeeding-titles 0.1`
-* Requires `pub-sub-event-types 0.1` (not in ReShare fork)
-* Requires `pubsub-publishers 0.1` (not in ReShare fork)
-* Requires `pubsub-subscribers 0.1` (not in ReShare fork)
-* Requires `pubsub-publish 0.1` (not in ReShare fork)
+* Requires `pub-sub-event-types 0.1`
+* Requires `pubsub-publishers 0.1`
+* Requires `pubsub-subscribers 0.1`
+* Requires `pubsub-publish 0.1`
 
 ## 13.1.0 2019-12-03
 
