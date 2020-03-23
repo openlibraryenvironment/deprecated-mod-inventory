@@ -1,8 +1,12 @@
+## 14.1.0-shared-inventory3
+
+* Adds Instance property `matchKey` (PR-466)
+
 ## 14.1.0-shared-inventory2
 
- * Contains upstream fix for MODINV-212 on top of upstream release v14.0.0
- * shared-inventory: Adds Item.status.name 'Unknown' to allowed statuses (PR-565)
- * shared-inventory: Does not express pub-sub requirements at this point
+* Contains upstream fix for MODINV-212 on top of upstream release v14.0.0
+* shared-inventory: Adds Item.status.name 'Unknown' to allowed statuses (PR-565)
+* shared-inventory: Does not express pub-sub requirements at this point
 
 ## 14.0.0 2020-03-09
 
