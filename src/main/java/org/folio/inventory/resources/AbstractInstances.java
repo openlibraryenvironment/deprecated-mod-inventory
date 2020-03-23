@@ -3,13 +3,19 @@ package org.folio.inventory.resources;
 import static java.lang.String.format;
 import static org.folio.inventory.common.FutureAssistance.allOf;
 
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
-import io.vertx.ext.web.RoutingContext;
+import java.lang.invoke.MethodHandles;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
 import org.folio.inventory.common.WebContext;
 import org.folio.inventory.common.domain.MultipleRecords;
 import org.folio.inventory.config.InventoryConfiguration;
@@ -33,18 +39,13 @@ import org.folio.inventory.support.http.client.OkapiHttpClient;
 import org.folio.inventory.support.http.client.Response;
 import org.folio.inventory.support.http.server.ServerErrorResponse;
 
-import java.lang.invoke.MethodHandles;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
+import io.vertx.ext.web.RoutingContext;
 
 public abstract class AbstractInstances {
 
@@ -314,6 +315,7 @@ public abstract class AbstractInstances {
     resp.put("hrid", instance.getHrid());
     resp.put(Instance.SOURCE_KEY, instance.getSource());
     resp.put(Instance.TITLE_KEY, instance.getTitle());
+    putIfNotNull(resp, Instance.MATCH_KEY_KEY, instance.getMatchKey());
     putIfNotNull(resp, Instance.INDEX_TITLE_KEY, instance.getIndexTitle());
     putIfNotNull(resp, Instance.PARENT_INSTANCES_KEY, parentInstances);
     putIfNotNull(resp, Instance.CHILD_INSTANCES_KEY, childInstances);
@@ -438,6 +440,7 @@ public abstract class AbstractInstances {
       instanceRequest.getString(Instance.SOURCE_KEY),
       instanceRequest.getString(Instance.TITLE_KEY),
       instanceRequest.getString(Instance.INSTANCE_TYPE_ID_KEY))
+      .setMatchKey(instanceRequest.getString(Instance.MATCH_KEY_KEY))
       .setIndexTitle(instanceRequest.getString(Instance.INDEX_TITLE_KEY))
       .setParentInstances(parentInstances)
       .setChildInstances(childInstances)

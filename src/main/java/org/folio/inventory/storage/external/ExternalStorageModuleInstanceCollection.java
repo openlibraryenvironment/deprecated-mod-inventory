@@ -1,14 +1,18 @@
 package org.folio.inventory.storage.external;
 
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
+import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
+import static org.apache.http.HttpStatus.SC_CREATED;
+import static org.apache.http.HttpStatus.SC_INTERNAL_SERVER_ERROR;
+import static org.folio.inventory.support.JsonArrayHelper.toList;
+import static org.folio.inventory.support.JsonArrayHelper.toListOfStrings;
+import static org.folio.inventory.support.http.ContentType.APPLICATION_JSON;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
 import org.folio.inventory.common.domain.Failure;
 import org.folio.inventory.common.domain.Success;
 import org.folio.inventory.domain.BatchResult;
@@ -23,18 +27,15 @@ import org.folio.inventory.domain.instances.Note;
 import org.folio.inventory.domain.instances.Publication;
 import org.folio.inventory.domain.sharedproperties.ElectronicAccess;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
-import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
-import static org.apache.http.HttpStatus.SC_CREATED;
-import static org.apache.http.HttpStatus.SC_INTERNAL_SERVER_ERROR;
-import static org.folio.inventory.support.JsonArrayHelper.toList;
-import static org.folio.inventory.support.JsonArrayHelper.toListOfStrings;
-import static org.folio.inventory.support.http.ContentType.APPLICATION_JSON;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 
 class ExternalStorageModuleInstanceCollection
   extends ExternalStorageModuleCollection<Instance>
@@ -63,6 +64,7 @@ class ExternalStorageModuleInstanceCollection
       : UUID.randomUUID().toString());
     instanceToSend.put(Instance.HRID_KEY, instance.getHrid());
     includeIfPresent(instanceToSend, Instance.SOURCE_KEY, instance.getSource());
+    instanceToSend.put(Instance.MATCH_KEY_KEY, instance.getMatchKey());
     instanceToSend.put(Instance.TITLE_KEY, instance.getTitle());
     instanceToSend.put(Instance.INDEX_TITLE_KEY, instance.getIndexTitle());
     instanceToSend.put(Instance.ALTERNATIVE_TITLES_KEY, instance.getAlternativeTitles());
@@ -159,6 +161,7 @@ class ExternalStorageModuleInstanceCollection
       instanceFromServer.getString(Instance.SOURCE_KEY),
       instanceFromServer.getString(Instance.TITLE_KEY),
       instanceFromServer.getString(Instance.INSTANCE_TYPE_ID_KEY))
+      .setMatchKey(instanceFromServer.getString(Instance.MATCH_KEY_KEY))
       .setIndexTitle(instanceFromServer.getString(Instance.INDEX_TITLE_KEY))
       .setAlternativeTitles(mappedAlternativeTitles)
       .setEditions(jsonArrayAsListOfStrings(instanceFromServer, Instance.EDITIONS_KEY))
