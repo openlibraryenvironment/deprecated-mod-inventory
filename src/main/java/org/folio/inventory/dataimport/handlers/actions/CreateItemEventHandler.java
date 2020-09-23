@@ -1,13 +1,13 @@
 package org.folio.inventory.dataimport.handlers.actions;
 
 import io.vertx.core.Future;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.folio.ActionProfile;
 import org.folio.DataImportEventPayload;
-import org.folio.MappingProfile;
 import org.folio.inventory.common.Context;
 import org.folio.inventory.common.api.request.PagingParameters;
 import org.folio.inventory.dataimport.handlers.matching.util.EventHandlingUtil;
@@ -32,10 +32,8 @@ import java.io.UnsupportedEncodingException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -44,14 +42,15 @@ import java.util.stream.Collectors;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.folio.ActionProfile.Action.CREATE;
 import static org.folio.ActionProfile.FolioRecord.ITEM;
+import static org.folio.DataImportEventTypes.DI_INVENTORY_ITEM_CREATED;
 import static org.folio.rest.jaxrs.model.ProfileSnapshotWrapper.ContentType.ACTION_PROFILE;
 
 public class CreateItemEventHandler implements EventHandler {
 
-  public static final String ITEM_CREATED_EVENT_TYPE = "DI_INVENTORY_ITEM_CREATED";
   private static final String PAYLOAD_HAS_NO_DATA_MSG = "Failed to handle event payload, cause event payload context does not contain MARC_BIBLIOGRAPHIC data";
   private static final String PAYLOAD_DATA_HAS_NO_HOLDING_ID_MSG = "Failed to extract holdingsRecordId from holdingsRecord entity or parsed record";
   public static final String HOLDINGS_RECORD_ID_FIELD = "holdingsRecordId";
+  public static final String ITEM_PATH_FIELD = "item";
   public static final String HOLDING_ID_FIELD = "id";
   public static final String ITEM_ID_FIELD = "id";
 
@@ -83,30 +82,32 @@ public class CreateItemEventHandler implements EventHandler {
       Context context = EventHandlingUtil.constructContext(dataImportEventPayload.getTenant(), dataImportEventPayload.getToken(), dataImportEventPayload.getOkapiUrl());
       dataImportEventPayload.getEventsChain().add(dataImportEventPayload.getEventType());
       dataImportEventPayload.setCurrentNode(dataImportEventPayload.getCurrentNode().getChildSnapshotWrappers().get(0));
-      dataImportEventPayload.getCurrentNode()
-        .setContent(new JsonObject((LinkedHashMap) dataImportEventPayload.getCurrentNode().getContent()).mapTo(MappingProfile.class));
       dataImportEventPayload.getContext().put(ITEM.value(), new JsonObject().encode());
 
       MappingManager.map(dataImportEventPayload);
       JsonObject itemAsJson = new JsonObject(dataImportEventPayload.getContext().get(ITEM.value()));
+      if (itemAsJson.getJsonObject(ITEM_PATH_FIELD) != null) {
+        itemAsJson = itemAsJson.getJsonObject(ITEM_PATH_FIELD);
+      }
       fillHoldingsRecordIdIfNecessary(dataImportEventPayload, itemAsJson);
       itemAsJson.put(ITEM_ID_FIELD, UUID.randomUUID().toString());
 
       ItemCollection itemCollection = storage.getItemCollection(context);
-      List<String> errors = validateItem(itemAsJson);
+      List<String> errors = validateItem(itemAsJson, requiredFields);
       if (errors.isEmpty()) {
         Item mappedItem = ItemUtil.jsonToItem(itemAsJson);
+        JsonObject finalItemAsJson = itemAsJson;
         isItemBarcodeUnique(itemAsJson.getString("barcode"), itemCollection)
           .compose(isUnique -> isUnique
             ? addItem(mappedItem, itemCollection)
-            : Future.failedFuture(String.format("Barcode must be unique, %s is already assigned to another item", itemAsJson.getString("barcode"))))
+            : Future.failedFuture(String.format("Barcode must be unique, %s is already assigned to another item", finalItemAsJson.getString("barcode"))))
           .setHandler(ar -> {
             if (ar.succeeded()) {
-              dataImportEventPayload.getContext().put(ITEM.value(), itemAsJson.encode());
-              dataImportEventPayload.setEventType(ITEM_CREATED_EVENT_TYPE);
+              dataImportEventPayload.getContext().put(ITEM.value(), Json.encode(ar.result()));
+              dataImportEventPayload.setEventType(DI_INVENTORY_ITEM_CREATED.value());
               future.complete(dataImportEventPayload);
             } else {
-              LOG.error("Error creating inventory Item" , ar.cause());
+              LOG.error("Error creating inventory Item", ar.cause());
               future.completeExceptionally(ar.cause());
             }
           });
@@ -116,10 +117,19 @@ public class CreateItemEventHandler implements EventHandler {
         future.completeExceptionally(new EventProcessingException(msg));
       }
     } catch (Exception e) {
-      LOG.error("Error creating inventory Item" , e);
+      LOG.error("Error creating inventory Item", e);
       future.completeExceptionally(e);
     }
     return future;
+  }
+
+  @Override
+  public boolean isEligible(DataImportEventPayload dataImportEventPayload) {
+    if (dataImportEventPayload.getCurrentNode() != null && ACTION_PROFILE == dataImportEventPayload.getCurrentNode().getContentType()) {
+      ActionProfile actionProfile = JsonObject.mapFrom(dataImportEventPayload.getCurrentNode().getContent()).mapTo(ActionProfile.class);
+      return actionProfile.getAction() == CREATE && actionProfile.getFolioRecord() == ITEM;
+    }
+    return false;
   }
 
   private void fillHoldingsRecordIdIfNecessary(DataImportEventPayload dataImportEventPayload, JsonObject itemAsJson) throws IOException {
@@ -144,36 +154,17 @@ public class CreateItemEventHandler implements EventHandler {
     }
   }
 
-  @Override
-  public boolean isEligible(DataImportEventPayload dataImportEventPayload) {
-    if (dataImportEventPayload.getCurrentNode() != null && ACTION_PROFILE == dataImportEventPayload.getCurrentNode().getContentType()) {
-      ActionProfile actionProfile = JsonObject.mapFrom(dataImportEventPayload.getCurrentNode().getContent()).mapTo(ActionProfile.class);
-      return actionProfile.getAction() == CREATE && actionProfile.getFolioRecord() == ITEM;
-    }
-    return false;
-  }
-
-  private List<String> validateItem(JsonObject itemAsJson) {
-    ArrayList<String> errorMessages = new ArrayList<>();
-    for (String fieldPath : requiredFields) {
-      String field = StringUtils.substringBefore(fieldPath, ".");
-      String nestedField = StringUtils.substringAfter(fieldPath, ".");
-      if (!isExistsRequiredProperty(itemAsJson, field, nestedField)) {
-        errorMessages.add(String.format("Field '%s' is a required field and can not be null", fieldPath));
-      }
-    }
+  private void validateStatusName(JsonObject itemAsJson, List<String> errors) {
     String statusName = JsonHelper.getNestedProperty(itemAsJson, "status", "name");
     if (StringUtils.isNotBlank(statusName) && !ItemStatusName.isStatusCorrect(statusName)) {
-      errorMessages.add(String.format("Invalid status specified '%s'", statusName));
+      errors.add(String.format("Invalid status specified '%s'", statusName));
     }
-    return errorMessages;
   }
 
-  private boolean isExistsRequiredProperty(JsonObject representation, String propertyName, String nestedPropertyName) {
-    String propertyValue = StringUtils.isEmpty(nestedPropertyName)
-      ? JsonHelper.getString(representation, propertyName)
-      : JsonHelper.getNestedProperty(representation, propertyName, nestedPropertyName);
-    return StringUtils.isNotEmpty(propertyValue);
+  private List<String> validateItem(JsonObject itemAsJson, List<String> requiredFields) {
+    List<String> errors = EventHandlingUtil.validateJsonByRequiredFields(itemAsJson, requiredFields);
+    validateStatusName(itemAsJson, errors);
+    return errors;
   }
 
   private Future<Boolean> isItemBarcodeUnique(String barcode, ItemCollection itemCollection) throws UnsupportedEncodingException {
@@ -195,7 +186,7 @@ public class CreateItemEventHandler implements EventHandler {
 
     itemCollection.add(item.withCirculationNotes(notes), success -> future.complete(success.getResult()),
       failure -> {
-        LOG.error("Error posting Item cause %s, status code %s", failure.getReason(), failure.getStatusCode());
+        LOG.error("Error posting Item cause {0}, status code {1}", failure.getReason(), failure.getStatusCode());
         future.fail(failure.getReason());
       });
     return future;

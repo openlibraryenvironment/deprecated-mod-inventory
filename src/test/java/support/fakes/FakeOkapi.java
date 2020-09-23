@@ -4,6 +4,7 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
+import support.fakes.processors.StorageConstraintsProcessors;
 import support.fakes.processors.StorageRecordPreProcessors;
 
 public class FakeOkapi extends AbstractVerticle {
@@ -36,6 +37,7 @@ public class FakeOkapi extends AbstractVerticle {
     registerFakeUsersModule(router);
     registerFakeNatureOfContentTermsModule(router);
     registerFakePubSubModule(router);
+    registerFakeRequestsModule(router);
 
     server.requestHandler(router::accept)
       .listen(PORT_TO_USE, result -> {
@@ -82,12 +84,33 @@ public class FakeOkapi extends AbstractVerticle {
       .withRootPath("/instance-storage/instance-relationships")
       .withCollectionPropertyName("instanceRelationships")
       .withRequiredProperties("superInstanceId", "subInstanceId", "instanceRelationshipTypeId")
+      .withRecordPreProcessors(
+        StorageConstraintsProcessors::instanceRelationshipsConstraints)
       .create().register(router);
 
     new FakeStorageModuleBuilder()
       .withRecordName("preceding succeeding titles")
       .withRootPath("/preceding-succeeding-titles")
       .withCollectionPropertyName("precedingSucceedingTitles")
+      .withRecordPreProcessors(
+        StorageConstraintsProcessors::instancePrecedingSucceedingTitleConstraints)
+      .create().register(router);
+
+    new FakeStorageModuleBuilder()
+      .withRecordName("Instance relationship types")
+      .withRootPath("/instance-relationship-types")
+      .withCollectionPropertyName("instanceRelationshipTypes")
+      .withRequiredProperties("name")
+      .create().register(router);
+  }
+
+  private void registerFakeRequestsModule(Router router) {
+    new FakeStorageModuleBuilder()
+      .withRecordName("Request storage")
+      .withRootPath("/request-storage/requests")
+      .withCollectionPropertyName("requests")
+      .withRequiredProperties("itemId", "requesterId", "requestType", "requestDate",
+        "fulfilmentPreference")
       .create().register(router);
   }
 
@@ -216,6 +239,10 @@ public class FakeOkapi extends AbstractVerticle {
     new FakeStorageModuleBuilder()
       .withRootPath("/pubsub/event-types")
       .withRequiredProperties("eventType", "eventTTL")
+      .create().register(router);
+
+    new FakeStorageModuleBuilder()
+      .withRootPath("/pubsub/publish")
       .create().register(router);
 
     new FakeStorageModuleBuilder()

@@ -3,15 +3,18 @@ package org.folio.inventory.resources;
 import static io.netty.util.internal.StringUtil.COMMA;
 import static java.lang.String.format;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.folio.inventory.support.CompletableFutures.failedFuture;
+import static org.folio.inventory.support.EndpointFailureHandler.doExceptionally;
 import static org.folio.inventory.support.EndpointFailureHandler.getKnownException;
 import static org.folio.inventory.support.EndpointFailureHandler.handleFailure;
 import static org.folio.inventory.support.http.server.SuccessResponse.noContent;
+import static org.folio.inventory.validation.InstancesValidators.refuseWhenHridChanged;
 
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +39,7 @@ import org.folio.inventory.domain.instances.titles.PrecedingSucceedingTitle;
 import org.folio.inventory.services.InstanceRelationshipsService;
 import org.folio.inventory.storage.Storage;
 import org.folio.inventory.storage.external.CollectionResourceClient;
+import org.folio.inventory.support.InstanceUtil;
 import org.folio.inventory.support.JsonArrayHelper;
 import org.folio.inventory.support.http.client.Response;
 import org.folio.inventory.support.http.server.ClientErrorResponse;
@@ -43,8 +47,10 @@ import org.folio.inventory.support.http.server.FailureResponseConsumer;
 import org.folio.inventory.support.http.server.JsonResponse;
 import org.folio.inventory.support.http.server.RedirectResponse;
 import org.folio.inventory.support.http.server.ServerErrorResponse;
-import org.folio.rest.client.SourceStorageClient;
-import org.folio.rest.jaxrs.model.SuppressFromDiscoveryDto;
+import org.folio.inventory.validation.InstancePrecedingSucceedingTitleValidators;
+import org.folio.inventory.validation.InstancesValidators;
+import org.folio.inventory.exceptions.UnprocessableEntityException;
+import org.folio.rest.client.SourceStorageRecordsClient;
 
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.Json;
@@ -163,58 +169,44 @@ public class Instances extends AbstractInstances {
       return;
     }
 
-    Instance newInstance = requestToInstance(instanceRequest);
+    Instance newInstance = InstanceUtil.jsonToInstance(instanceRequest);
 
-    storage.getInstanceCollection(context).add(newInstance,
-      success -> {
-        Instance response = success.getResult();
+    completedFuture(newInstance)
+      .thenCompose(InstancePrecedingSucceedingTitleValidators::refuseWhenUnconnectedHasNoTitle)
+      .thenCompose(instance -> storage.getInstanceCollection(context).add(instance))
+      .thenCompose(response -> {
         response.setParentInstances(newInstance.getParentInstances());
         response.setChildInstances(newInstance.getChildInstances());
         response.setPrecedingTitles(newInstance.getPrecedingTitles());
         response.setSucceedingTitles(newInstance.getSucceedingTitles());
 
-        updateRelatedRecords(routingContext, context, response, r -> {
-          try {
-            URL url = context.absoluteUrl(format("%s/%s",
-              INSTANCES_PATH, response.getId()));
-            RedirectResponse.created(routingContext.response(), url.toString());
-          } catch (MalformedURLException e) {
-            log.warn(
-              format("Failed to create self link for instance: %s", e.toString()));
-          }
-        });
-      }, FailureResponseConsumer.serverError(routingContext.response()));
+        return updateRelatedRecords(routingContext, context, response).thenApply(notUsed -> response);
+      }).thenAccept(response -> {
+        try {
+          URL url = context.absoluteUrl(format("%s/%s",
+            INSTANCES_PATH, response.getId()));
+          RedirectResponse.created(routingContext.response(), url.toString());
+        } catch (MalformedURLException e) {
+          log.warn(
+            format("Failed to create self link for instance: %s", e.toString()));
+        }
+      }).exceptionally(doExceptionally(routingContext));
   }
 
   private void update(RoutingContext rContext) {
     WebContext wContext = new WebContext(rContext);
     JsonObject instanceRequest = rContext.getBodyAsJson();
-    Instance updatedInstance = requestToInstance(instanceRequest);
+    Instance updatedInstance = InstanceUtil.jsonToInstance(instanceRequest);
     InstanceCollection instanceCollection = storage.getInstanceCollection(wContext);
 
-    instanceCollection.findById(rContext.request().getParam("id"), it -> {
-        Instance existingInstance = it.getResult();
-        if (existingInstance != null) {
-          if (isInstanceControlledByRecord(existingInstance) && areInstanceBlockedFieldsChanged(existingInstance, updatedInstance)) {
-            String errorMessage = BLOCKED_FIELDS_UPDATE_ERROR_MESSAGE + StringUtils.join(config.getInstanceBlockedFields(), COMMA);
-            log.error(errorMessage);
-            JsonResponse.unprocessableEntity(rContext.response(), errorMessage);
-          } else if (!Objects.equals(existingInstance.getHrid(), updatedInstance.getHrid())) {
-            log.warn("The HRID property can not be updated, old value is '{}' but new is '{}'",
-              existingInstance.getHrid(), updatedInstance.getHrid()
-            );
-
-            JsonResponse.unprocessableEntity(rContext.response(),
-              "HRID can not be updated", "hrid", updatedInstance.getHrid()
-            );
-          } else {
-            updateInstance(updatedInstance, rContext, wContext);
-          }
-        } else {
-          ClientErrorResponse.notFound(rContext.response());
-        }
-      },
-      FailureResponseConsumer.serverError(rContext.response()));
+    completedFuture(updatedInstance)
+      .thenCompose(InstancePrecedingSucceedingTitleValidators::refuseWhenUnconnectedHasNoTitle)
+      .thenCompose(instance -> instanceCollection.findById(rContext.request().getParam("id")))
+      .thenCompose(InstancesValidators::refuseWhenInstanceNotFound)
+      .thenCompose(existingInstance -> refuseWhenBlockedFieldsChanged(existingInstance, updatedInstance))
+      .thenCompose(existingInstance -> refuseWhenHridChanged(existingInstance, updatedInstance))
+      .thenAccept(existingInstance -> updateInstance(updatedInstance, rContext, wContext))
+      .exceptionally(doExceptionally(rContext));
   }
 
   /**
@@ -225,13 +217,9 @@ public class Instances extends AbstractInstances {
    */
   private void updateSuppressFromDiscoveryFlag(WebContext wContext, Instance updatedInstance) {
     try {
-      SourceStorageClient client = new SourceStorageClient(wContext.getOkapiLocation(),
+      SourceStorageRecordsClient client = new SourceStorageRecordsClient(wContext.getOkapiLocation(),
         wContext.getTenantId(), wContext.getToken());
-      SuppressFromDiscoveryDto dto = new SuppressFromDiscoveryDto()
-        .withId(updatedInstance.getId())
-        .withIncomingIdType(SuppressFromDiscoveryDto.IncomingIdType.INSTANCE)
-        .withSuppressFromDiscovery(updatedInstance.getDiscoverySuppress());
-      client.putSourceStorageRecordSuppressFromDiscovery(dto, httpClientResponse -> {
+      client.putSourceStorageRecordsSuppressFromDiscoveryById(updatedInstance.getId(), "INSTANCE", updatedInstance.getDiscoverySuppress(), httpClientResponse -> {
         if (httpClientResponse.statusCode() == HttpStatus.HTTP_OK.toInt()) {
           log.info(format("Suppress from discovery flag was successfully updated for record in SRS. InstanceID: %s",
             updatedInstance.getId()));
@@ -267,7 +255,15 @@ public class Instances extends AbstractInstances {
     instanceCollection.update(
       instance,
       v -> {
-        updateRelatedRecords(rContext, wContext, instance, x -> noContent(rContext.response()));
+        updateRelatedRecords(rContext, wContext, instance)
+          .whenComplete((result, ex) -> {
+            if (ex != null) {
+              log.warn("Exception occurred", ex);
+              handleFailure(getKnownException(ex), rContext);
+            } else {
+              noContent(rContext.response());
+            }
+          });
         if (isInstanceControlledByRecord(instance)) {
           updateSuppressFromDiscoveryFlag(wContext, instance);
         }
@@ -391,7 +387,7 @@ public class Instances extends AbstractInstances {
     Instance instance) {
 
     JsonResponse.success(routingContext.response(), toRepresentation(instance,
-      new ArrayList<>(), new ArrayList<>(),
+      instance.getParentInstances(), instance.getChildInstances(),
       instance.getPrecedingTitles(), instance.getSucceedingTitles(), context));
   }
 
@@ -415,8 +411,8 @@ public class Instances extends AbstractInstances {
   private CompletableFuture<Instance> withInstanceRelationships(Instance instance,
     Response result) {
 
-    List<InstanceRelationshipToParent> parentInstanceList = new ArrayList();
-    List<InstanceRelationshipToChild> childInstanceList = new ArrayList();
+    List<InstanceRelationshipToParent> parentInstanceList = new ArrayList<>();
+    List<InstanceRelationshipToChild> childInstanceList = new ArrayList<>();
     if (result.getStatusCode() == 200) {
       JsonObject json = result.getJson();
       List<JsonObject> relationsList = JsonArrayHelper.toList(json.getJsonArray("instanceRelationships"));
@@ -454,12 +450,12 @@ public class Instances extends AbstractInstances {
   // Utilities
 
   private List<String> getInstanceIdsFromInstanceResult(Success success) {
-    List<String> instanceIds = new ArrayList();
+    List<String> instanceIds = new ArrayList<>();
     if (success.getResult() instanceof Instance) {
-      instanceIds = Arrays.asList(((Instance) success.getResult()).getId());
+      instanceIds = Collections.singletonList(((Instance) success.getResult()).getId());
     } else if (success.getResult() instanceof MultipleRecords) {
       instanceIds = (((MultipleRecords<Instance>) success.getResult()).records.stream()
-        .map(instance -> instance.getId())
+        .map(Instance::getId)
         .filter(Objects::nonNull)
         .distinct()
         .collect(Collectors.toList()));
@@ -474,7 +470,7 @@ public class Instances extends AbstractInstances {
 
     // if list does not exist create it
     if (itemsList == null) {
-      itemsList = new ArrayList();
+      itemsList = new ArrayList<>();
       itemsList.add(myItem);
       items.put(mapKey, itemsList);
     } else {
@@ -549,14 +545,14 @@ public class Instances extends AbstractInstances {
     List<CompletableFuture<PrecedingSucceedingTitle>> succeedingTitleCompletableFutures) {
 
     return allResultsOf(succeedingTitleCompletableFutures)
-      .thenApply(resultItem -> instance.setSucceedingTitles(resultItem));
+      .thenApply(instance::setSucceedingTitles);
   }
 
   private CompletableFuture<Instance> withPrecedingTitles(Instance instance,
     List<CompletableFuture<PrecedingSucceedingTitle>> precedingTitleCompletableFutures) {
 
     return allResultsOf(precedingTitleCompletableFutures)
-      .thenApply(resultItem -> instance.setPrecedingTitles(resultItem));
+      .thenApply(instance::setPrecedingTitles);
   }
 
   private CompletableFuture<InstancesResponse> withPrecedingTitles(
@@ -564,7 +560,7 @@ public class Instances extends AbstractInstances {
     Map<String, List<CompletableFuture<PrecedingSucceedingTitle>>> precedingTitles) {
 
     return mapToCompletableFutureMap(precedingTitles)
-      .thenApply(res -> instance.setPrecedingTitlesMap(res));
+      .thenApply(instance::setPrecedingTitlesMap);
   }
 
   private CompletableFuture<InstancesResponse> withSucceedingTitles(
@@ -572,7 +568,7 @@ public class Instances extends AbstractInstances {
     Map<String, List<CompletableFuture<PrecedingSucceedingTitle>>> precedingTitles) {
 
     return mapToCompletableFutureMap(precedingTitles)
-      .thenApply(res -> instance.setSucceedingTitlesMap(res));
+      .thenApply(instance::setSucceedingTitlesMap);
   }
 
   private CompletableFuture<Map<String, List<PrecedingSucceedingTitle>>> mapToCompletableFutureMap(
@@ -620,5 +616,21 @@ public class Instances extends AbstractInstances {
     return new InstanceRelationshipsService(
       createInstanceRelationshipsClient(routingContext, webContext),
       createPrecedingSucceedingTitlesClient(routingContext, webContext));
+  }
+
+  private CompletionStage<Instance> refuseWhenBlockedFieldsChanged(
+    Instance existingInstance, Instance updatedInstance) {
+
+    if (isInstanceControlledByRecord(existingInstance)
+      && areInstanceBlockedFieldsChanged(existingInstance, updatedInstance)) {
+
+      String errorMessage = BLOCKED_FIELDS_UPDATE_ERROR_MESSAGE + StringUtils
+        .join(config.getInstanceBlockedFields(), COMMA);
+
+      log.error(errorMessage);
+      return failedFuture(new UnprocessableEntityException(errorMessage, null, null));
+    }
+
+    return completedFuture(existingInstance);
   }
 }

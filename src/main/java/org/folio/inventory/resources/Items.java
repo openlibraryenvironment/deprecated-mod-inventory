@@ -1,7 +1,9 @@
 package org.folio.inventory.resources;
 
+import static org.folio.HttpStatus.HTTP_CREATED;
 import static org.folio.inventory.common.FutureAssistance.allOf;
 import static org.folio.inventory.support.CqlHelper.multipleRecordsCqlQuery;
+import static org.folio.inventory.support.EndpointFailureHandler.doExceptionally;
 import static org.folio.inventory.support.http.server.JsonResponse.unprocessableEntity;
 import static org.folio.inventory.validation.ItemStatusValidator.itemHasCorrectStatus;
 import static org.folio.inventory.validation.ItemsValidator.claimedReturnedMarkedAsMissing;
@@ -34,10 +36,11 @@ import org.folio.inventory.domain.items.Item;
 import org.folio.inventory.domain.items.ItemCollection;
 import org.folio.inventory.domain.user.User;
 import org.folio.inventory.domain.user.UserCollection;
+import org.folio.inventory.services.MoveItemIntoStatusService;
 import org.folio.inventory.storage.Storage;
+import org.folio.inventory.storage.external.Clients;
 import org.folio.inventory.storage.external.CollectionResourceClient;
 import org.folio.inventory.support.CqlHelper;
-import org.folio.inventory.support.EndpointFailureHandler;
 import org.folio.inventory.support.ItemUtil;
 import org.folio.inventory.support.JsonArrayHelper;
 import org.folio.inventory.support.http.client.OkapiHttpClient;
@@ -51,7 +54,6 @@ import org.folio.inventory.support.http.server.SuccessResponse;
 import org.folio.inventory.support.http.server.ValidationError;
 import org.folio.inventory.validation.ItemsValidator;
 
-import io.vertx.core.Future;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -60,25 +62,22 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 
-public class Items {
+public class Items extends AbstractInventoryResource {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private static final String RELATIVE_ITEMS_PATH = "/inventory/items";
 
-  private final Storage storage;
   private static final int STATUS_CREATED = 201;
   private static final int STATUS_SUCCESS = 200;
-
-  private final HttpClient client;
 
   private final DateTimeFormatter dateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ").withZone(ZoneOffset.UTC);
 
   public Items(final Storage storage, final HttpClient client) {
-    this.storage = storage;
-    this.client = client;
+    super(storage, client);
   }
 
+  @Override
   public void register(Router router) {
     router.post(RELATIVE_ITEMS_PATH + "*").handler(BodyHandler.create());
     router.put(RELATIVE_ITEMS_PATH + "*").handler(BodyHandler.create());
@@ -90,6 +89,33 @@ public class Items {
     router.get(RELATIVE_ITEMS_PATH + "/:id").handler(this::getById);
     router.put(RELATIVE_ITEMS_PATH + "/:id").handler(this::update);
     router.delete(RELATIVE_ITEMS_PATH + "/:id").handler(this::deleteById);
+
+    router.post(RELATIVE_ITEMS_PATH + "/:id/mark-withdrawn")
+      .handler(handle(this::markAsWithdrawn));
+    router.post(RELATIVE_ITEMS_PATH + "/:id/mark-missing")
+      .handler(handle(this::markAsMissing));
+  }
+
+  private CompletableFuture<Void> markAsWithdrawn(
+    RoutingContext routingContext, WebContext webContext, Clients clients) {
+
+    final MoveItemIntoStatusService moveItemIntoStatusService = new MoveItemIntoStatusService(storage
+      .getItemCollection(webContext), clients);
+
+    return moveItemIntoStatusService.processMarkItemWithdrawn(webContext)
+      .thenAccept(item -> respondWithItemRepresentation(item, HTTP_CREATED.toInt(),
+          routingContext, webContext));
+  }
+
+  private CompletableFuture<Void> markAsMissing(
+    RoutingContext routingContext, WebContext webContext, Clients clients) {
+
+    final MoveItemIntoStatusService moveItemIntoStatusService = new MoveItemIntoStatusService(storage
+      .getItemCollection(webContext), clients);
+
+    return moveItemIntoStatusService.processMarkItemMissing(webContext)
+      .thenAccept(item -> respondWithItemRepresentation(item, HTTP_CREATED.toInt(),
+          routingContext, webContext));
   }
 
   private void getAll(RoutingContext routingContext) {
@@ -188,23 +214,17 @@ public class Items {
     UserCollection userCollection = storage.getUserCollection(context);
 
     final String itemId = routingContext.request().getParam("id");
-    final Future<Success<Item>> getItemFuture = Future.future();
+    final CompletableFuture<Success<Item>> getItemFuture = new CompletableFuture<>();
 
     itemCollection.findById(itemId, getItemFuture::complete,
       FailureResponseConsumer.serverError(routingContext.response()));
 
     getItemFuture
-      .map(Success::getResult)
-      .compose(ItemsValidator::itemNotFound)
-      .compose(oldItem -> hridChanged(oldItem, newItem))
-      .compose(oldItem -> claimedReturnedMarkedAsMissing(oldItem, newItem))
-      .setHandler(result -> {
-        if (result.failed()) {
-          EndpointFailureHandler.handleFailure(result, routingContext);
-          return;
-        }
-
-        Item oldItem = result.result();
+      .thenApply(Success::getResult)
+      .thenCompose(ItemsValidator::refuseWhenItemNotFound)
+      .thenCompose(oldItem -> hridChanged(oldItem, newItem))
+      .thenCompose(oldItem -> claimedReturnedMarkedAsMissing(oldItem, newItem))
+      .thenAccept(oldItem -> {
         if (hasSameBarcode(newItem, oldItem)) {
           findUserAndUpdateItem(routingContext, newItem, oldItem, userCollection, itemCollection);
         } else {
@@ -214,7 +234,7 @@ public class Items {
             ServerErrorResponse.internalError(routingContext.response(), e.toString());
           }
         }
-      });
+      }).exceptionally(doExceptionally(routingContext));
   }
 
   private void deleteById(RoutingContext routingContext) {
@@ -291,7 +311,7 @@ public class Items {
     ArrayList<CompletableFuture<Response>> allFutures = new ArrayList<>();
 
     List<String> holdingsIds = wrappedItems.records.stream()
-      .map(item -> item.getHoldingId())
+      .map(Item::getHoldingId)
       .filter(Objects::nonNull)
       .distinct()
       .collect(Collectors.toList());
@@ -341,12 +361,12 @@ public class Items {
           instancesResponse.getJson().getJsonArray("instances"));
 
         List<String> materialTypeIds = wrappedItems.records.stream()
-          .map(item -> item.getMaterialTypeId())
+          .map(Item::getMaterialTypeId)
           .filter(Objects::nonNull)
           .distinct()
           .collect(Collectors.toList());
 
-        materialTypeIds.stream().forEach(id -> {
+        materialTypeIds.forEach(id -> {
           CompletableFuture<Response> newFuture = new CompletableFuture<>();
 
           allFutures.add(newFuture);
@@ -356,13 +376,13 @@ public class Items {
         });
 
         List<String> permanentLoanTypeIds = wrappedItems.records.stream()
-          .map(item -> item.getPermanentLoanTypeId())
+          .map(Item::getPermanentLoanTypeId)
           .filter(Objects::nonNull)
           .distinct()
           .collect(Collectors.toList());
 
         List<String> temporaryLoanTypeIds = wrappedItems.records.stream()
-          .map(item -> item.getTemporaryLoanTypeId())
+          .map(Item::getTemporaryLoanTypeId)
           .filter(Objects::nonNull)
           .distinct()
           .collect(Collectors.toList());
@@ -386,13 +406,13 @@ public class Items {
           .collect(Collectors.toList());
 
         List<String> permanentLocationIds = wrappedItems.records.stream()
-          .map(item -> item.getPermanentLocationId())
+          .map(Item::getPermanentLocationId)
           .filter(Objects::nonNull)
           .distinct()
           .collect(Collectors.toList());
 
         List<String> temporaryLocationIds = wrappedItems.records.stream()
-          .map(item -> item.getTemporaryLocationId())
+          .map(Item::getTemporaryLocationId)
           .filter(Objects::nonNull)
           .distinct()
           .collect(Collectors.toList());

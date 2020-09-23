@@ -1,5 +1,12 @@
 package org.folio.inventory.resources;
 
+import static java.lang.String.format;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.folio.inventory.support.EndpointFailureHandler.getKnownException;
+import static org.folio.inventory.support.EndpointFailureHandler.handleFailure;
+import static org.folio.inventory.support.JsonArrayHelper.toList;
+import static org.folio.inventory.validation.InstancePrecedingSucceedingTitleValidators.isTitleMissingForUnconnectedPrecedingSucceeding;
+
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
@@ -14,7 +21,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.folio.inventory.common.WebContext;
 import org.folio.inventory.domain.BatchResult;
 import org.folio.inventory.domain.instances.Instance;
+import org.folio.inventory.domain.instances.titles.PrecedingSucceedingTitle;
 import org.folio.inventory.storage.Storage;
+import org.folio.inventory.support.InstanceUtil;
 import org.folio.inventory.support.http.server.RedirectResponse;
 
 import java.util.ArrayList;
@@ -22,9 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import static java.lang.String.format;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class InstancesBatch extends AbstractInstances {
 
@@ -64,7 +70,7 @@ public class InstancesBatch extends AbstractInstances {
     } else {
       setInstancesIdIfNecessary(validInstances);
       List<Instance> instancesToCreate = validInstances.stream()
-        .map(this::requestToInstance)
+        .map(InstanceUtil::jsonToInstance)
         .collect(Collectors.toList());
 
       storage.getInstanceCollection(webContext).addBatch(instancesToCreate, success -> {
@@ -128,6 +134,20 @@ public class InstancesBatch extends AbstractInstances {
       log.error(errorMessage);
       errorMessages.add(errorMessage);
     }
+
+    final List<PrecedingSucceedingTitle> precedingTitles = toList(jsonInstance
+      .getJsonArray(Instance.PRECEDING_TITLES_KEY), PrecedingSucceedingTitle::from);
+    final List<PrecedingSucceedingTitle> succeedingTitles = toList(jsonInstance
+      .getJsonArray(Instance.SUCCEEDING_TITLES_KEY), PrecedingSucceedingTitle::from);
+
+    if (isTitleMissingForUnconnectedPrecedingSucceeding(precedingTitles)) {
+      errorMessages.add("Title is required for unconnected preceding title");
+    }
+
+    if (isTitleMissingForUnconnectedPrecedingSucceeding(succeedingTitles)) {
+      errorMessages.add("Title is required for unconnected succeeding title");
+    }
+
     return errorMessages;
   }
 
@@ -183,7 +203,7 @@ public class InstancesBatch extends AbstractInstances {
     Future<CompositeFuture> resultFuture = Future.future();
     try {
       Map<String, Instance> mapInstanceById = newInstances.stream()
-        .collect(Collectors.toMap(instance -> instance.getString("id"), this::requestToInstance));
+        .collect(Collectors.toMap(instance -> instance.getString("id"), InstanceUtil::jsonToInstance));
 
       List<Future> updateRelationshipsFutures = new ArrayList<>();
       for (Instance createdInstance : createdInstances) {
@@ -195,10 +215,18 @@ public class InstancesBatch extends AbstractInstances {
           createdInstance.setSucceedingTitles(newInstance.getSucceedingTitles());
           Future updateFuture = Future.future();
           updateRelationshipsFutures.add(updateFuture);
-          updateRelatedRecords(routingContext, webContext, createdInstance, o -> updateFuture.complete());
+          updateRelatedRecords(routingContext, webContext, createdInstance)
+            .whenComplete((result, ex) -> {
+              if (ex == null) {
+                updateFuture.complete();
+              } else {
+                log.warn("Exception occurred", ex);
+                handleFailure(getKnownException(ex), routingContext);
+              }
+            });
         }
       }
-      resultFuture.handle(CompositeFuture.join(updateRelationshipsFutures));
+      CompositeFuture.join(updateRelationshipsFutures).setHandler(resultFuture);
     } catch (IllegalStateException e) {
       log.error("Can not update instances relationships cause: " + e);
       resultFuture.fail(e);

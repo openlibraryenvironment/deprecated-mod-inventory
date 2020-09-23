@@ -37,6 +37,18 @@ public class ApiRoot {
     return new URL(String.format("%s/items", inventory()));
   }
 
+  public static URL moveItems()
+    throws MalformedURLException {
+
+    return new URL(String.format("%s/items/move", inventory()));
+  }
+
+  public static URL moveHoldingsRecords()
+    throws MalformedURLException {
+
+    return new URL(String.format("%s/holdings/move", inventory()));
+  }
+
   public static URL items(String query)
     throws MalformedURLException {
 
@@ -74,5 +86,10 @@ public class ApiRoot {
   public static URL dataImportEventHandler()
     throws MalformedURLException {
     return new URL(String.format("%s/data-import", handlers()));
+  }
+
+  public static URL instancesEventHandler()
+    throws MalformedURLException {
+    return new URL(String.format("%s/instances", handlers()));
   }
 }

@@ -60,6 +60,11 @@ public class ResourceClient {
       "instances");
   }
 
+  public static ResourceClient forInstancesStorage(OkapiHttpClient okapiClient) {
+    return new ResourceClient(okapiClient, StorageInterfaceUrls::instancesStorageUrl,
+      "instances");
+  }
+
   public static ResourceClient forInstancesBatch(OkapiHttpClient client) {
     return new ResourceClient(client, BusinessLogicInterfaceUrls::instancesBatch,
       "instances");
@@ -109,6 +114,16 @@ public class ResourceClient {
       "Instance relationships", "instanceRelationships");
   }
 
+  public static ResourceClient forInstanceRelationshipType(OkapiHttpClient okapiClient) {
+    return new ResourceClient(okapiClient, StorageInterfaceUrls::instanceRelationshipTypeUrl,
+      "Instance relationship types", "instanceRelationshipTypes");
+  }
+
+  public static ResourceClient forRequestStorage(OkapiHttpClient okapiClient) {
+    return new ResourceClient(okapiClient, StorageInterfaceUrls::requestStorageUrl,
+      "request storage", "requests");
+  }
+
   private ResourceClient(
     OkapiHttpClient client,
     UrlMaker urlMaker, String resourceName,
@@ -139,19 +154,13 @@ public class ResourceClient {
     return create(builder.create());
   }
 
-  public IndividualResource create(JsonObject request)
+  public IndividualResource create(Object request)
     throws MalformedURLException,
     InterruptedException,
     ExecutionException,
     TimeoutException {
 
-    CompletableFuture<Response> createCompleted = new CompletableFuture<>();
-
-    //TODO: Reinstate json checking
-    client.post(urlMaker.combine(""), request,
-      ResponseHandler.any(createCompleted));
-
-    Response response = createCompleted.get(5, TimeUnit.SECONDS);
+    Response response = attemptToCreate(request);
 
     assertThat(
       String.format("Failed to create %s: %s", resourceName, response.getBody()),
@@ -172,6 +181,19 @@ public class ResourceClient {
     }
   }
 
+  public Response attemptToCreate(Object request)
+    throws MalformedURLException, InterruptedException, ExecutionException,
+    TimeoutException {
+
+    CompletableFuture<Response> createCompleted = new CompletableFuture<>();
+
+    //TODO: Reinstate json checking
+    client.post(urlMaker.combine(""), request,
+      ResponseHandler.any(createCompleted));
+
+    return createCompleted.get(5, TimeUnit.SECONDS);
+  }
+
   public void replace(UUID id, Builder builder)
     throws MalformedURLException,
     InterruptedException,
@@ -187,16 +209,23 @@ public class ResourceClient {
     ExecutionException,
     TimeoutException {
 
+    Response putResponse = attemptToReplace(id, request);
+
+    assertThat(
+      String.format("Failed to update %s %s: %s", resourceName, id, putResponse.getBody()),
+      putResponse.getStatusCode(), is(HttpURLConnection.HTTP_NO_CONTENT));
+  }
+
+  public Response attemptToReplace(UUID id, JsonObject request)
+    throws MalformedURLException, InterruptedException, ExecutionException,
+    TimeoutException {
+
     CompletableFuture<Response> putCompleted = new CompletableFuture<>();
 
     client.put(urlMaker.combine(String.format("/%s", id)), request,
       ResponseHandler.any(putCompleted));
 
-    Response putResponse = putCompleted.get(5, TimeUnit.SECONDS);
-
-    assertThat(
-      String.format("Failed to update %s %s: %s", resourceName, id, putResponse.getBody()),
-      putResponse.getStatusCode(), is(HttpURLConnection.HTTP_NO_CONTENT));
+    return putCompleted.get(5, TimeUnit.SECONDS);
   }
 
   public Response getById(UUID id)
@@ -333,7 +362,7 @@ public class ResourceClient {
     assertThat(future.get(5, TimeUnit.SECONDS).getStatusCode(), is(201));
   }
 
-  public void expireFailureEmulation()
+  public void disableFailureEmulation()
     throws MalformedURLException, InterruptedException, ExecutionException, TimeoutException {
 
     emulateFailure(new EndpointFailureDescriptor()

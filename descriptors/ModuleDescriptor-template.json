@@ -4,7 +4,7 @@
   "provides": [
     {
       "id": "inventory",
-      "version": "10.2",
+      "version": "10.6",
       "handlers": [
         {
           "methods": ["GET"],
@@ -40,7 +40,58 @@
             "inventory-storage.instances.collection.get",
             "inventory-storage.instances.item.get"
           ]
-        }, {
+        },
+        {
+          "methods": [
+            "POST"
+          ],
+          "pathPattern": "/inventory/items/{id}/mark-withdrawn",
+          "permissionsRequired": [
+            "inventory.items.item.mark-withdrawn.post"
+          ],
+          "modulePermissions": [
+            "circulation-storage.requests.collection.get",
+            "circulation-storage.requests.item.put",
+            "inventory-storage.items.item.put",
+            "inventory-storage.material-types.item.get",
+            "inventory-storage.material-types.collection.get",
+            "inventory-storage.loan-types.item.get",
+            "inventory-storage.loan-types.collection.get",
+            "inventory-storage.locations.item.get",
+            "inventory-storage.locations.collection.get",
+            "inventory-storage.holdings.collection.get",
+            "inventory-storage.holdings.item.get",
+            "inventory-storage.instances.collection.get",
+            "inventory-storage.instances.item.get",
+            "users.item.get"
+          ]
+        },
+        {
+          "methods": [
+            "POST"
+          ],
+          "pathPattern": "/inventory/items/{id}/mark-missing",
+          "permissionsRequired": [
+            "inventory.items.item.mark-missing.post"
+          ],
+          "modulePermissions": [
+            "circulation-storage.requests.collection.get",
+            "circulation-storage.requests.item.put",
+            "inventory-storage.items.item.put",
+            "inventory-storage.material-types.item.get",
+            "inventory-storage.material-types.collection.get",
+            "inventory-storage.loan-types.item.get",
+            "inventory-storage.loan-types.collection.get",
+            "inventory-storage.locations.item.get",
+            "inventory-storage.locations.collection.get",
+            "inventory-storage.holdings.collection.get",
+            "inventory-storage.holdings.item.get",
+            "inventory-storage.instances.collection.get",
+            "inventory-storage.instances.item.get",
+            "users.item.get"
+          ]
+        },
+        {
           "methods": ["POST"],
           "pathPattern": "/inventory/items",
           "permissionsRequired": ["inventory.items.item.post"],
@@ -84,14 +135,18 @@
           "modulePermissions": [
             "inventory-storage.instances.collection.get",
             "inventory-storage.instances.item.get",
-            "inventory-storage.preceding-succeeding-titles.collection.get"]
+            "inventory-storage.preceding-succeeding-titles.collection.get",
+            "inventory-storage.instance-relationships.collection.get"
+          ]
         }, {
           "methods": ["GET"],
           "pathPattern": "/inventory/instances/{id}",
           "permissionsRequired": ["inventory.instances.item.get"],
           "modulePermissions": [
             "inventory-storage.instances.item.get",
-            "inventory-storage.preceding-succeeding-titles.collection.get"]
+            "inventory-storage.preceding-succeeding-titles.collection.get",
+            "inventory-storage.instance-relationships.collection.get"
+          ]
         }, {
           "methods": ["POST"],
           "pathPattern": "/inventory/instances",
@@ -102,7 +157,11 @@
             "inventory-storage.preceding-succeeding-titles.collection.get",
             "inventory-storage.preceding-succeeding-titles.item.post",
             "inventory-storage.preceding-succeeding-titles.item.put",
-            "inventory-storage.preceding-succeeding-titles.item.delete"
+            "inventory-storage.preceding-succeeding-titles.item.delete",
+            "inventory-storage.instance-relationships.collection.get",
+            "inventory-storage.instance-relationships.item.post",
+            "inventory-storage.instance-relationships.item.put",
+            "inventory-storage.instance-relationships.item.delete"
           ]
         }, {
           "methods": ["PUT"],
@@ -113,11 +172,16 @@
             "inventory-storage.instances.item.get",
             "inventory-storage.instances.item.post",
             "inventory-storage.instances.item.delete",
-            "source-storage.record.update",
+            "source-storage.records.update",
             "inventory-storage.preceding-succeeding-titles.collection.get",
             "inventory-storage.preceding-succeeding-titles.item.post",
             "inventory-storage.preceding-succeeding-titles.item.put",
-            "inventory-storage.preceding-succeeding-titles.item.delete"]
+            "inventory-storage.preceding-succeeding-titles.item.delete",
+            "inventory-storage.instance-relationships.collection.get",
+            "inventory-storage.instance-relationships.item.post",
+            "inventory-storage.instance-relationships.item.put",
+            "inventory-storage.instance-relationships.item.delete"
+          ]
         }, {
           "methods": ["DELETE"],
           "pathPattern": "/inventory/instances/{id}",
@@ -168,7 +232,11 @@
             "inventory-storage.preceding-succeeding-titles.collection.get",
             "inventory-storage.preceding-succeeding-titles.item.post",
             "inventory-storage.preceding-succeeding-titles.item.put",
-            "inventory-storage.preceding-succeeding-titles.item.delete"
+            "inventory-storage.preceding-succeeding-titles.item.delete",
+            "inventory-storage.instance-relationships.collection.get",
+            "inventory-storage.instance-relationships.item.post",
+            "inventory-storage.instance-relationships.item.put",
+            "inventory-storage.instance-relationships.item.delete"
           ]
         }
       ]
@@ -210,6 +278,32 @@
       ]
     },
     {
+      "id": "inventory-move",
+      "version": "0.2",
+      "handlers": [
+        {
+          "methods": ["POST"],
+          "pathPattern": "/inventory/items/move",
+          "permissionsRequired": ["inventory.items.move.item.post"],
+          "modulePermissions": [
+            "inventory-storage.items.item.put",
+            "inventory-storage.items.collection.get",
+            "inventory-storage.holdings.item.get"
+          ]
+        },
+        {
+          "methods": ["POST"],
+          "pathPattern": "/inventory/holdings/move",
+          "permissionsRequired": ["inventory.holdings.move.item.post"],
+          "modulePermissions": [
+            "inventory-storage.holdings.item.put",
+            "inventory-storage.holdings.collection.get",
+            "inventory-storage.instances.item.get"
+          ]
+        }
+      ]
+    },
+    {
       "id": "inventory-event-handlers",
       "version": "0.1",
       "handlers": [
@@ -235,7 +329,26 @@
             "inventory-storage.holdings.item.get",
             "inventory-storage.holdings.item.post",
             "inventory-storage.instances.collection.get",
-            "inventory-storage.instances.item.get"
+            "inventory-storage.instances.item.get",
+            "inventory-storage.instances.item.post",
+            "inventory-storage.instances.item.put",
+            "inventory-storage.holdings.item.put",
+            "inventory-storage.items.item.put",
+            "inventory-storage.preceding-succeeding-titles.item.post"
+          ]
+        },
+        {
+          "methods": [
+            "POST"
+          ],
+          "pathPattern": "/inventory/handlers/instances",
+          "permissionsRequired": [
+            "inventory.events.post"
+          ],
+          "modulePermissions": [
+            "inventory-storage.instances.item.get",
+            "inventory-storage.instances.item.put",
+            "pubsub.publish.post"
           ]
         }
       ]
@@ -262,7 +375,7 @@
   "requires": [
     {
       "id": "item-storage",
-      "version": "8.1"
+      "version": "8.5"
     },
     {
       "id": "instance-storage",
@@ -324,6 +437,26 @@
       "permissionName": "inventory.items.item.get",
       "displayName": "Inventory - get individual item",
       "description": "Get individual item"
+    },
+    {
+      "permissionName": "inventory.items.item.mark-withdrawn.post",
+      "displayName": "Inventory - mark an item as withdrawn",
+      "description": "Mark an item as withdrawn"
+    },
+    {
+      "permissionName": "inventory.items.move.item.post",
+      "displayName": "Inventory - move items to another holdings record",
+      "description": "Move items to another holdings record"
+    },
+    {
+      "permissionName": "inventory.items.item.mark-missing.post",
+      "displayName": "Inventory - mark an item as missing",
+      "description": "Mark an item as missing"
+    },
+    {
+      "permissionName": "inventory.holdings.move.item.post",
+      "displayName": "Inventory - move holdings record to another instance",
+      "description": "Move holdings record to another holdings record"
     },
     {
       "permissionName": "inventory.items.item.post",
@@ -415,7 +548,11 @@
         "inventory.instances.collection.delete",
         "inventory.ingest.mods.post",
         "inventory.ingest.mods.status.get",
-        "inventory.config.instances.blocked-fields.get"
+        "inventory.config.instances.blocked-fields.get",
+        "inventory.items.item.mark-withdrawn.post",
+        "inventory.items.item.mark-missing.post",
+        "inventory.items.move.item.post",
+        "inventory.holdings.move.item.post"
       ]
     },
     {
@@ -449,7 +586,7 @@
     "dockerPull": false,
     "dockerArgs": {
       "HostConfig": {
-        "Memory": 357913941,
+        "Memory": 715827883,
         "PortBindings": { "9403/tcp": [ { "HostPort": "%p" } ] }
       }
     },

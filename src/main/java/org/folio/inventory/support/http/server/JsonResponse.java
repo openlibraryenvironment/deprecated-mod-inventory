@@ -1,15 +1,16 @@
 package org.folio.inventory.support.http.server;
 
+import java.util.Collections;
+import java.util.List;
+
+import org.folio.inventory.support.http.ContentType;
+
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import org.folio.inventory.support.http.ContentType;
-
-import java.util.Collections;
-import java.util.List;
 
 public class JsonResponse {
 

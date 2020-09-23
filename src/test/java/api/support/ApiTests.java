@@ -1,15 +1,19 @@
 package api.support;
 
-import api.ApiTestSuite;
-import api.support.http.ResourceClient;
+import java.net.MalformedURLException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+
 import org.folio.inventory.support.http.client.OkapiHttpClient;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
-import java.net.MalformedURLException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+import api.ApiTestSuite;
+import api.support.fixtures.InstanceRelationshipTypeFixture;
+import api.support.fixtures.MarkItemMissingFixture;
+import api.support.fixtures.MarkItemWithdrawnFixture;
+import api.support.http.ResourceClient;
 
 public abstract class ApiTests {
   private static boolean runningOnOwn;
@@ -19,22 +23,33 @@ public abstract class ApiTests {
   protected final ResourceClient itemsStorageClient;
   protected final ResourceClient itemsClient;
   protected final ResourceClient instancesClient;
+  protected final ResourceClient instancesStorageClient;
   protected final ResourceClient isbnClient;
   protected final ResourceClient usersClient;
   protected final ResourceClient instancesBatchClient;
   protected final ResourceClient precedingSucceedingTitlesClient;
   protected final ResourceClient instanceRelationshipClient;
+  protected final ResourceClient requestStorageClient;
+
+  protected final InstanceRelationshipTypeFixture instanceRelationshipTypeFixture;
+  protected final MarkItemWithdrawnFixture markWithdrawnFixture;
+  protected final MarkItemMissingFixture markMissingFixture;
 
   public ApiTests() {
     holdingsStorageClient = ResourceClient.forHoldingsStorage(okapiClient);
     itemsStorageClient = ResourceClient.forItemsStorage(okapiClient);
     itemsClient = ResourceClient.forItems(okapiClient);
     instancesClient = ResourceClient.forInstances(okapiClient);
+    instancesStorageClient = ResourceClient.forInstancesStorage(okapiClient);
     isbnClient = ResourceClient.forIsbns(okapiClient);
     usersClient = ResourceClient.forUsers(okapiClient);
     instancesBatchClient = ResourceClient.forInstancesBatch(okapiClient);
     precedingSucceedingTitlesClient = ResourceClient.forPrecedingSucceedingTitles(okapiClient);
     instanceRelationshipClient = ResourceClient.forInstanceRelationship(okapiClient);
+    requestStorageClient = ResourceClient.forRequestStorage(okapiClient);
+    instanceRelationshipTypeFixture = new InstanceRelationshipTypeFixture(okapiClient);
+    markWithdrawnFixture = new MarkItemWithdrawnFixture(okapiClient);
+    markMissingFixture = new MarkItemMissingFixture(okapiClient);
   }
 
   @BeforeClass

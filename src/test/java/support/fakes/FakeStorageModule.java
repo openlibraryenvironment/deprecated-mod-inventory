@@ -1,5 +1,6 @@
 package support.fakes;
 
+import static api.ApiTestSuite.ID_FOR_FAILURE;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import java.util.ArrayList;
@@ -9,14 +10,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.folio.inventory.common.WebContext;
+import org.folio.inventory.support.EndpointFailureHandler;
 import org.folio.inventory.support.http.server.ClientErrorResponse;
 import org.folio.inventory.support.http.server.JsonResponse;
+import org.folio.inventory.support.http.server.ServerErrorResponse;
 import org.folio.inventory.support.http.server.SuccessResponse;
 import org.folio.inventory.support.http.server.ValidationError;
 import org.joda.time.DateTime;
@@ -28,6 +30,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
+import support.fakes.processors.RecordPreProcessor;
 
 class FakeStorageModule extends AbstractVerticle {
   private final String rootPath;
@@ -38,7 +41,7 @@ class FakeStorageModule extends AbstractVerticle {
   private final String recordTypeName;
   private final Collection<String> uniqueProperties;
   private final Map<String, Supplier<Object>> defaultProperties;
-  private final List<BiFunction<JsonObject, JsonObject, CompletableFuture<JsonObject>>> recordPreProcessors;
+  private final List<RecordPreProcessor> recordPreProcessors;
   private EndpointFailureDescriptor endpointFailureDescriptor = null;
 
   FakeStorageModule(
@@ -50,7 +53,7 @@ class FakeStorageModule extends AbstractVerticle {
     String recordTypeName,
     Collection<String> uniqueProperties,
     Map<String, Supplier<Object>> defaultProperties,
-    List<BiFunction<JsonObject, JsonObject, CompletableFuture<JsonObject>>> recordPreProcessors) {
+    List<RecordPreProcessor> recordPreProcessors) {
 
     this.rootPath = rootPath;
     this.collectionPropertyName = collectionPropertyName;
@@ -115,7 +118,9 @@ class FakeStorageModule extends AbstractVerticle {
     }
 
     return endpointFailureDescriptor != null && DateTime.now().toDate()
-      .before(endpointFailureDescriptor.getFailureExpireDate());
+      .before(endpointFailureDescriptor.getFailureExpireDate())
+      && endpointFailureDescriptor.getMethod().equals(routingContext.request()
+      .method());
   }
 
   void registerBatch(Router router, String batchPath) {
@@ -168,6 +173,11 @@ class FakeStorageModule extends AbstractVerticle {
         String.format("Created %s resource: %s", recordTypeName, id));
 
       JsonResponse.created(routingContext.response(), body);
+    }).exceptionally(error -> {
+      EndpointFailureHandler.handleFailure(EndpointFailureHandler.getKnownException(error),
+        routingContext);
+
+      return null;
     });
   }
 
@@ -190,7 +200,9 @@ class FakeStorageModule extends AbstractVerticle {
     preProcessRecords(resourcesForTenant.get(id), rawBody).thenAccept(body -> {
       setDefaultProperties(body);
 
-      if (resourcesForTenant.containsKey(id)) {
+      if (ID_FOR_FAILURE.toString().equals(id)) {
+        ServerErrorResponse.internalError(routingContext.response(), "Test Internal Server Error");
+      } else if (resourcesForTenant.containsKey(id)) {
         System.out.println(
           String.format("Replaced %s resource: %s", recordTypeName, id));
 
@@ -395,9 +407,19 @@ class FakeStorageModule extends AbstractVerticle {
   private CompletableFuture<JsonObject> preProcessRecords(JsonObject oldBody, JsonObject newBody) {
     CompletableFuture<JsonObject> lastPreProcess = completedFuture(newBody);
 
-    for (BiFunction<JsonObject, JsonObject, CompletableFuture<JsonObject>> preProcessor : recordPreProcessors) {
+    for (RecordPreProcessor preProcessor : recordPreProcessors) {
       lastPreProcess = lastPreProcess
-        .thenCompose(prev -> preProcessor.apply(oldBody, newBody));
+        .thenCompose(prev -> {
+            try {
+              return preProcessor.process(oldBody, newBody);
+            } catch (Exception ex) {
+              CompletableFuture<JsonObject> future = new CompletableFuture<>();
+              future.completeExceptionally(ex);
+
+              return future;
+            }
+          }
+        );
     }
 
     return lastPreProcess;

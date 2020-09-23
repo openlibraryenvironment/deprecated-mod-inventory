@@ -17,6 +17,7 @@ import org.folio.inventory.resources.Instances;
 import org.folio.inventory.resources.InstancesBatch;
 import org.folio.inventory.resources.IsbnUtilsApi;
 import org.folio.inventory.resources.Items;
+import org.folio.inventory.resources.MoveApi;
 import org.folio.inventory.resources.TenantApi;
 import org.folio.inventory.resources.ingest.ModsIngestion;
 import org.folio.inventory.storage.Storage;
@@ -53,11 +54,12 @@ public class InventoryVerticle extends AbstractVerticle {
 
     new ModsIngestion(storage, client).register(router);
     new Items(storage, client).register(router);
+    new MoveApi(storage, client).register(router);
     new Instances(storage, client).register(router);
     new InstancesBatch(storage, client).register(router);
     new IsbnUtilsApi().register(router);
     new TenantApi().register(router);
-    new EventHandlers(storage).register(router);
+    new EventHandlers(storage, client).register(router);
 
     Handler<AsyncResult<HttpServer>> onHttpServerStart = result -> {
       if (result.succeeded()) {
