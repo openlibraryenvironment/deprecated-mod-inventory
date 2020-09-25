@@ -379,7 +379,7 @@
     },
     {
       "id": "instance-storage",
-      "version": "7.4"
+      "version": "7.2"
     },
     {
       "id": "instance-storage-batch",
@@ -418,8 +418,32 @@
       "version": "15.0"
     },
     {
+      "id": "pubsub-event-types",
+      "version": "0.1"
+    },
+    {
+      "id": "pubsub-publishers",
+      "version": "0.1"
+    },
+    {
+      "id": "pubsub-subscribers",
+      "version": "0.1"
+    },
+    {
+      "id": "pubsub-publish",
+      "version": "0.1"
+    },
+    {
       "id": "instance-preceding-succeeding-titles",
       "version": "0.1"
+    },
+    {
+      "id": "request-storage",
+      "version": "3.3"
+    },
+    {
+      "id": "source-storage-records",
+      "version": "2.0"
     }
   ],
   "permissionSets": [
